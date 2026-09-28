@@ -71,3 +71,4 @@ RLS: in phase 1 you can only read and write your own rows.
 - [ ] **Phase 2 · Squads**: invite code, squad membership, friends' grids + today list, RLS widened to squad members
 - [ ] **Phase 3 · Kudos + nudges**: 🔥👏💪🌱 reactions, push notifications (kudos received, gentle evening reminder)
 - [ ] **Later · Rewind**: yearly recap: 12-month grid, top categories, longest streak, busiest month
+# sprout-squad
