@@ -88,19 +88,19 @@ export default function SignIn() {
           ) : (
             <>
               <H>Enter your code</H>
-              <Body style={{ color: c.ink2 }}>We sent a 6-digit code to {email.trim()}.</Body>
+              <Body style={{ color: c.ink2 }}>We sent a sign-in code to {email.trim()}.</Body>
               <TextInput
                 style={[input, { fontFamily: fonts.mono, fontSize: 22, letterSpacing: 6, textAlign: 'center' }]}
                 value={code}
-                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
+                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 10))}
+                placeholder="Code"
                 placeholderTextColor={c.ink3}
                 keyboardType="number-pad"
                 autoComplete="one-time-code"
                 textContentType="oneTimeCode"
-                onSubmitEditing={() => code.length === 6 && onVerify()}
+                onSubmitEditing={() => code.length >= 6 && onVerify()}
               />
-              <Button label={busy ? 'Checking…' : 'Sign in'} onPress={onVerify} disabled={code.length !== 6 || busy} />
+              <Button label={busy ? 'Checking…' : 'Sign in'} onPress={onVerify} disabled={code.length < 6 || busy} />
               <Button label="Use a different email" variant="ghost" onPress={() => { setStep('email'); setCode(''); }} />
             </>
           )}

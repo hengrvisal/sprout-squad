@@ -27,10 +27,19 @@ export async function sendCode(email: string) {
   if (error) throw error;
 }
 
-/** Step 2: exchange the code for a session. */
+/**
+ * Step 2: exchange the code for a session.
+ *
+ * Fallback for App Store / TestFlight review: reviewers can't receive our emails, so a
+ * demo account (created in the Supabase dashboard with a numeric password) signs in by
+ * typing that password into the same code box. Normal accounts have no password, so
+ * this path does nothing for them.
+ */
 export async function verifyCode(email: string, token: string) {
   const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
-  if (error) throw error;
+  if (!error) return;
+  const { error: pwError } = await supabase.auth.signInWithPassword({ email, password: token });
+  if (pwError) throw error;
 }
 
 /** Sign out and wipe this user's cached data from the phone. */
