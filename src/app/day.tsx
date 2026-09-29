@@ -12,7 +12,7 @@ import { fonts, radius, useColors } from '@/theme/tokens';
 export default function Day() {
   const c = useColors();
   const { today, remove } = useEntries();
-  const { received } = useSquads();
+  const { received, notes } = useSquads();
   const [err, setErr] = useState<string | null>(null);
 
   return (
@@ -61,6 +61,23 @@ export default function Day() {
           ))
         )}
       </Card>
+
+      {notes.length > 0 && (
+        <Card style={{ gap: 10 }}>
+          <Eyebrow>Notes from your squad</Eyebrow>
+          {notes.map((n) => (
+            <View key={n.from} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+              <Text style={{ fontSize: 20 }}>{n.avatar}</Text>
+              <Body style={{ flex: 1 }}>
+                <Text style={{ fontFamily: fonts.bodyBold }}>{n.name}</Text>
+                {'\n'}
+                <Text style={{ color: c.ink2 }}>“{n.note}”</Text>
+              </Body>
+              <Mono style={{ fontSize: 12, color: c.ink3 }}>{ago(n.at)}</Mono>
+            </View>
+          ))}
+        </Card>
+      )}
     </DetailScreen>
   );
 }

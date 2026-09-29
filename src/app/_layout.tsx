@@ -33,6 +33,7 @@ function RootStack() {
         <Stack.Screen name="(tabs)" />
         {/* detail screens, one tap from the tabs */}
         <Stack.Screen name="day" />
+        <Stack.Screen name="plan" />
         <Stack.Screen name="month" />
         <Stack.Screen name="plant" />
         <Stack.Screen name="friend/[id]" />

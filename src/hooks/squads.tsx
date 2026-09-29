@@ -4,6 +4,7 @@ import { readCache, writeCache } from '@/lib/cache';
 import type { CategoryKey } from '@/lib/categories';
 import { addDays, DayCounts, DayKey, monthAt, monthRange, ymd } from '@/lib/dates';
 import type { Kudo, KudoEmoji } from '@/lib/kudos';
+import { cleanText, NOTE_MAX_LEN } from '@/lib/plans';
 import type { PlantData } from '@/lib/plant';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './auth';
@@ -17,7 +18,14 @@ export type Member = {
   today: { id: string; text: string; category: CategoryKey; created_at: string }[];
   /** Kudos this member got today, from anyone in any of their squads you can see. */
   kudos: Kudo[];
+  /** What they planned to do today (done = ticked off and logged). */
+  plans: { id: string; text: string; done: boolean }[];
+  /** The note you sent them today, if any (notes are private to sender and recipient). */
+  myNote: string | null;
 };
+
+/** A note a squadmate sent you today. */
+export type ReceivedNote = { from: string; note: string; name: string; avatar: string; at: string };
 
 /** Kudos you received today, with who sent them. */
 export type ReceivedKudo = Kudo & { name: string; avatar: string };
@@ -39,6 +47,9 @@ type SquadsState = {
   received: ReceivedKudo[];
   /** The selected squad's plant (null until loaded, or if it failed). */
   plant: PlantData | null;
+  notes: ReceivedNote[];
+  /** Send, change or (with an empty note) take back today's note to a squadmate. */
+  sendNote: (toUser: string, note: string) => Promise<void>;
 };
 
 const Ctx = createContext<SquadsState | null>(null);
@@ -71,7 +82,7 @@ export function SquadsProvider({ children }: { children: ReactNode }) {
   );
 }
 
-type Cached = { squads: Squad[]; selectedId: string | null; members: Member[]; received: ReceivedKudo[]; day: DayKey; plant?: PlantData | null };
+type Cached = { squads: Squad[]; selectedId: string | null; members: Member[]; received: ReceivedKudo[]; day: DayKey; plant?: PlantData | null; notes?: ReceivedNote[] };
 
 function SquadsStore({ children, userId }: { children: ReactNode; userId: string | undefined }) {
   const [squads, setSquads] = useState<Squad[]>([]);
@@ -79,6 +90,7 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
   const [members, setMembers] = useState<Member[]>([]);
   const [received, setReceived] = useState<ReceivedKudo[]>([]);
   const [plant, setPlant] = useState<PlantData | null>(null);
+  const [notes, setNotes] = useState<ReceivedNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetched = useRef(false);
@@ -94,8 +106,16 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
       setSelectedId(c.selectedId);
       // older caches have no kudos field; yesterday's kudos don't belong on today
       const fresh = c.day === ymd(new Date());
-      setMembers(c.members.map((m) => ({ ...m, kudos: fresh ? (m.kudos ?? []) : [] })));
+      setMembers(
+        c.members.map((m) => ({
+          ...m,
+          kudos: fresh ? (m.kudos ?? []) : [],
+          plans: fresh ? (m.plans ?? []) : [],
+          myNote: fresh ? (m.myNote ?? null) : null,
+        })),
+      );
       setReceived(fresh ? (c.received ?? []) : []);
+      setNotes(fresh ? (c.notes ?? []) : []);
       setPlant(c.plant ?? null);
       setLoading(false);
     });
@@ -103,8 +123,8 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
 
   useEffect(() => {
     if (!userId || loading) return;
-    writeCache(userId, 'squads', { squads, selectedId: selected?.id ?? null, members, received, plant, day: ymd(new Date()) } satisfies Cached);
-  }, [userId, loading, squads, selected?.id, members, received, plant]);
+    writeCache(userId, 'squads', { squads, selectedId: selected?.id ?? null, members, received, plant, notes, day: ymd(new Date()) } satisfies Cached);
+  }, [userId, loading, squads, selected?.id, members, received, plant, notes]);
 
   const loadMembers = useCallback(async (squadId: string) => {
     const { from, to } = squadRange();
@@ -124,10 +144,17 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
           .order('created_at', { ascending: false })
       : { data: [], error: null };
     if (today.error) throw today.error;
-    const kudos = ids.length
-      ? await supabase.from('kudos').select('from_user, to_user, emoji').in('to_user', ids).eq('done_on', to)
-      : { data: [], error: null };
+    const [kudos, plans, sent] = ids.length
+      ? await Promise.all([
+          supabase.from('kudos').select('from_user, to_user, emoji').in('to_user', ids).eq('done_on', to),
+          supabase.from('plans').select('id, user_id, text, entry_id').in('user_id', ids).eq('done_on', to).order('created_at'),
+          // RLS only returns notes you sent or got; here, the ones you sent
+          supabase.from('kudo_notes').select('to_user, note').eq('from_user', userId ?? '').eq('done_on', to),
+        ])
+      : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
     if (kudos.error) throw kudos.error;
+    if (plans.error) throw plans.error;
+    if (sent.error) throw sent.error;
 
     const byUser = new Map<string, Member>();
     for (const row of (mem.data ?? []) as unknown as { user_id: string; profiles: { display_name: string; emoji: string } | null }[]) {
@@ -138,6 +165,8 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
         counts: {},
         today: [],
         kudos: [],
+        plans: [],
+        myNote: null,
       });
     }
     for (const r of (counts.data ?? []) as { user_id: string; done_on: string; n: number }[]) {
@@ -150,8 +179,29 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
     for (const k of (kudos.data ?? []) as { from_user: string; to_user: string; emoji: KudoEmoji }[]) {
       byUser.get(k.to_user)?.kudos.push({ from: k.from_user, emoji: k.emoji });
     }
+    for (const p of (plans.data ?? []) as { id: string; user_id: string; text: string; entry_id: string | null }[]) {
+      byUser.get(p.user_id)?.plans.push({ id: p.id, text: p.text, done: !!p.entry_id });
+    }
+    for (const n of (sent.data ?? []) as { to_user: string; note: string }[]) {
+      const m = byUser.get(n.to_user);
+      if (m) m.myNote = n.note;
+    }
     return [...byUser.values()];
-  }, []);
+  }, [userId]);
+
+  const loadNotes = useCallback(async (): Promise<ReceivedNote[]> => {
+    if (!userId) return [];
+    const { data, error } = await supabase
+      .from('kudo_notes')
+      .select('from_user, note, created_at, sender:profiles!kudo_notes_from_user_fkey(display_name, emoji)')
+      .eq('to_user', userId)
+      .eq('done_on', ymd(new Date()))
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return ((data ?? []) as unknown as { from_user: string; note: string; created_at: string; sender: { display_name: string; emoji: string } | null }[]).map(
+      (r) => ({ from: r.from_user, note: r.note, at: r.created_at, name: r.sender?.display_name || 'Someone', avatar: r.sender?.emoji ?? '🌱' }),
+    );
+  }, [userId]);
 
   const loadReceived = useCallback(async (): Promise<ReceivedKudo[]> => {
     if (!userId) return [];
@@ -180,14 +230,16 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
       fetched.current = true;
       setSquads(list);
       const current = list.find((s) => s.id === selectedId) ?? list[0] ?? null;
-      const [mem, rec, pl] = await Promise.all([
+      const [mem, rec, pl, nt] = await Promise.all([
         current ? loadMembers(current.id) : Promise.resolve([]),
         loadReceived(),
         current
           ? supabase.rpc('squad_plant', { p_squad: current.id, p_today: ymd(new Date()) }).then(({ data, error }) => (error ? null : (data as PlantData | null)))
           : Promise.resolve(null),
+        loadNotes(),
       ]);
       setMembers(mem);
+      setNotes(nt);
       setPlant(pl);
       setReceived(rec);
       setError(null);
@@ -196,7 +248,7 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedId, loadMembers, loadReceived]);
+  }, [userId, selectedId, loadMembers, loadReceived, loadNotes]);
 
   useEffect(() => {
     // refresh() only sets state after awaiting the network.
@@ -270,9 +322,30 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
     [userId, members],
   );
 
+  const sendNote = useCallback(
+    async (toUser: string, raw: string) => {
+      if (!userId || toUser === userId) return;
+      const note = cleanText(raw, NOTE_MAX_LEN);
+      const day = ymd(new Date());
+      const before = members.find((m) => m.id === toUser)?.myNote ?? null;
+      const apply = (v: string | null) => setMembers((ms) => ms.map((m) => (m.id === toUser ? { ...m, myNote: v } : m)));
+      apply(note || null);
+      const { error } = note
+        ? await supabase
+            .from('kudo_notes')
+            .upsert({ from_user: userId, to_user: toUser, done_on: day, note }, { onConflict: 'from_user,to_user,done_on' })
+        : await supabase.from('kudo_notes').delete().match({ from_user: userId, to_user: toUser, done_on: day });
+      if (error) {
+        apply(before);
+        throw error;
+      }
+    },
+    [userId, members],
+  );
+
   const value = useMemo(
-    () => ({ squads, selected, select, members, loading, error, refresh, create, join, leave, toggleKudo, received, plant }),
-    [squads, selected, select, members, loading, error, refresh, create, join, leave, toggleKudo, received, plant],
+    () => ({ squads, selected, select, members, loading, error, refresh, create, join, leave, toggleKudo, received, plant, notes, sendNote }),
+    [squads, selected, select, members, loading, error, refresh, create, join, leave, toggleKudo, received, plant, notes, sendNote],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

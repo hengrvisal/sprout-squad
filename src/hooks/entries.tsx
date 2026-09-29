@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import type { CategoryKey } from '@/lib/categories';
 import { readCache, writeCache } from '@/lib/cache';
 import { addDays, DayCounts, DayKey, monthRange, ymd } from '@/lib/dates';
+import { cleanText, MAX_PLANS, Plan, PLAN_MAX_LEN } from '@/lib/plans';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './auth';
 
@@ -16,11 +17,16 @@ type EntriesState = {
   todayKey: DayKey;
   loading: boolean;
   error: string | null;
-  add: (text: string, category: CategoryKey) => Promise<void>;
+  add: (text: string, category: CategoryKey) => Promise<Entry>;
   remove: (id: string) => Promise<void>;
   /** Make sure a month's counts are loaded (for ‹ month navigation). */
   ensureMonth: (y: number, m: number) => void;
   refresh: () => Promise<void>;
+  /** Today's plan: up to 3 things you mean to do. Ticking one off logs it. */
+  plans: Plan[];
+  addPlan: (text: string) => Promise<void>;
+  removePlan: (id: string) => Promise<void>;
+  completePlan: (id: string, category: CategoryKey) => Promise<void>;
 };
 
 const Ctx = createContext<EntriesState | null>(null);
@@ -42,6 +48,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
 function EntriesStore({ children, userId }: { children: ReactNode; userId: string | undefined }) {
   const [counts, setCounts] = useState<DayCounts>({});
   const [today, setToday] = useState<Entry[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [todayKey, setTodayKey] = useState(() => ymd(new Date()));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,11 +58,14 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
   // Show the last-known data straight away (and offline); the network refresh replaces it.
   useEffect(() => {
     if (!userId) return;
-    readCache<{ counts: DayCounts; today: Entry[]; todayKey: DayKey }>(userId, 'entries').then((c) => {
+    readCache<{ counts: DayCounts; today: Entry[]; todayKey: DayKey; plans?: Plan[] }>(userId, 'entries').then((c) => {
       if (!c || fetched.current) return;
       setCounts(c.counts);
-      // yesterday's "today" list is stale after midnight
-      if (c.todayKey === ymd(new Date())) setToday(c.today);
+      // yesterday's "today" list (and plan) is stale after midnight
+      if (c.todayKey === ymd(new Date())) {
+        setToday(c.today);
+        setPlans(c.plans ?? []);
+      }
       setLoading(false);
     });
   }, [userId]);
@@ -63,8 +73,13 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
   // Keep the cache in step with what's on screen (skipping optimistic temp rows).
   useEffect(() => {
     if (!userId || loading) return;
-    writeCache(userId, 'entries', { counts, today: today.filter((e) => !e.id.startsWith('temp-')), todayKey });
-  }, [userId, loading, counts, today, todayKey]);
+    writeCache(userId, 'entries', {
+      counts,
+      today: today.filter((e) => !e.id.startsWith('temp-')),
+      todayKey,
+      plans: plans.filter((p) => !p.id.startsWith('temp-')),
+    });
+  }, [userId, loading, counts, today, todayKey, plans]);
 
   const fetchCounts = useCallback(async (from: DayKey, to: DayKey) => {
     const { data, error } = await supabase.rpc('day_counts', { p_from: from, p_to: to });
@@ -80,15 +95,17 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
     const key = ymd(now);
     const from = ymd(addDays(now, -WINDOW_DAYS));
     try {
-      const [c, t] = await Promise.all([
+      const [c, t, pl] = await Promise.all([
         fetchCounts(from, key),
         supabase
           .from('entries')
           .select('id,text,category,done_on,created_at')
           .eq('done_on', key)
           .order('created_at', { ascending: false }),
+        supabase.from('plans').select('id,text,entry_id').eq('user_id', userId).eq('done_on', key).order('created_at'),
       ]);
       if (t.error) throw t.error;
+      if (pl.error) throw pl.error;
       fetched.current = true;
       setTodayKey(key);
       setCounts((prev) => {
@@ -97,6 +114,7 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
         return { ...kept, ...c };
       });
       setToday((t.data ?? []) as Entry[]);
+      setPlans((pl.data ?? []) as Plan[]);
       loadedFrom.current = loadedFrom.current && loadedFrom.current < from ? loadedFrom.current : from;
       setError(null);
     } catch {
@@ -151,6 +169,7 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
         throw error;
       }
       setToday((t) => t.map((e) => (e.id === tempId ? (data as Entry) : e)));
+      return data as Entry;
     },
     [],
   );
@@ -159,21 +178,78 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
     async (id: string) => {
       const entry = today.find((e) => e.id === id);
       if (!entry) return;
+      const linked = plans.find((p) => p.entry_id === id);
       setToday((t) => t.filter((e) => e.id !== id));
       setCounts((c) => ({ ...c, [entry.done_on]: Math.max(0, (c[entry.done_on] ?? 1) - 1) }));
+      // the server unlinks the plan (on delete set null); mirror that here
+      if (linked) setPlans((ps) => ps.map((p) => (p.id === linked.id ? { ...p, entry_id: null } : p)));
       const { error } = await supabase.from('entries').delete().eq('id', id);
       if (error) {
         setToday((t) => [entry, ...t]);
         setCounts((c) => ({ ...c, [entry.done_on]: (c[entry.done_on] ?? 0) + 1 }));
+        if (linked) setPlans((ps) => ps.map((p) => (p.id === linked.id ? { ...p, entry_id: id } : p)));
         throw error;
       }
     },
-    [today],
+    [today, plans],
+  );
+
+  const addPlan = useCallback(
+    async (raw: string) => {
+      const text = cleanText(raw, PLAN_MAX_LEN);
+      if (!text || plans.length >= MAX_PLANS) return;
+      const tempId = `temp-${Date.now()}`;
+      setPlans((ps) => [...ps, { id: tempId, text, entry_id: null }]);
+      const { data, error } = await supabase
+        .from('plans')
+        .insert({ text, done_on: ymd(new Date()) })
+        .select('id,text,entry_id')
+        .single();
+      if (error) {
+        setPlans((ps) => ps.filter((p) => p.id !== tempId));
+        throw error;
+      }
+      setPlans((ps) => ps.map((p) => (p.id === tempId ? (data as Plan) : p)));
+    },
+    [plans.length],
+  );
+
+  const removePlan = useCallback(
+    async (id: string) => {
+      const plan = plans.find((p) => p.id === id);
+      if (!plan) return;
+      setPlans((ps) => ps.filter((p) => p.id !== id));
+      const { error } = await supabase.from('plans').delete().eq('id', id);
+      if (error) {
+        setPlans((ps) => [...ps, plan]);
+        throw error;
+      }
+    },
+    [plans],
+  );
+
+  /** Log the plan as a win, then link it so it shows as done. */
+  const completePlan = useCallback(
+    async (id: string, category: CategoryKey) => {
+      const plan = plans.find((p) => p.id === id);
+      if (!plan || plan.entry_id || id.startsWith('temp-')) return;
+      setPlans((ps) => ps.map((p) => (p.id === id ? { ...p, entry_id: 'pending' } : p)));
+      try {
+        const entry = await add(plan.text, category);
+        const { error } = await supabase.from('plans').update({ entry_id: entry.id }).eq('id', id);
+        if (error) throw error;
+        setPlans((ps) => ps.map((p) => (p.id === id ? { ...p, entry_id: entry.id } : p)));
+      } catch (e) {
+        setPlans((ps) => ps.map((p) => (p.id === id && p.entry_id === 'pending' ? { ...p, entry_id: null } : p)));
+        throw e;
+      }
+    },
+    [plans, add],
   );
 
   const value = useMemo(
-    () => ({ counts, today, todayKey, loading, error, add, remove, ensureMonth, refresh }),
-    [counts, today, todayKey, loading, error, add, remove, ensureMonth, refresh],
+    () => ({ counts, today, todayKey, loading, error, add, remove, ensureMonth, refresh, plans, addPlan, removePlan, completePlan }),
+    [counts, today, todayKey, loading, error, add, remove, ensureMonth, refresh, plans, addPlan, removePlan, completePlan],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

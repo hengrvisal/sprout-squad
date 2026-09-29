@@ -10,6 +10,7 @@ import { CATEGORIES, CategoryKey } from '@/lib/categories';
 import { MONTHS, monthAt, streak } from '@/lib/dates';
 import { dayLabels } from '@/lib/format';
 import { tally } from '@/lib/kudos';
+import { planProgress, sortPlans } from '@/lib/plans';
 import { border, fonts, radius, useColors } from '@/theme/tokens';
 
 /**
@@ -18,8 +19,8 @@ import { border, fonts, radius, useColors } from '@/theme/tokens';
  */
 export default function Today() {
   const c = useColors();
-  const { counts, today, add, error } = useEntries();
-  const { received, refresh: refreshSquads } = useSquads();
+  const { counts, today, add, error, plans, completePlan } = useEntries();
+  const { received, notes, refresh: refreshSquads } = useSquads();
   const [text, setText] = useState('');
   const [cat, setCat] = useState<CategoryKey>('study');
   const [picking, setPicking] = useState(false);
@@ -28,6 +29,17 @@ export default function Today() {
   const { y, m } = monthAt(0);
   const st = streak(counts);
   const current = CATEGORIES.find((k) => k.key === cat) ?? CATEGORIES[0];
+  const planned = planProgress(plans);
+  const latestNote = notes[0];
+
+  async function onTick(id: string) {
+    setSaveError(null);
+    try {
+      await completePlan(id, cat);
+    } catch {
+      setSaveError('Couldn’t log that. Check your connection and try again.');
+    }
+  }
 
   // pick up kudos friends sent while you were away
   useFocusEffect(
@@ -102,6 +114,65 @@ export default function Today() {
           </Pressable>
         )}
         {saveError && <Body style={{ color: c.tang, fontSize: 13 }}>{saveError}</Body>}
+
+        {/* today's plan: tap an item to log it as a win */}
+        <View style={{ borderTopWidth: 1.5, borderTopColor: c.soft, paddingTop: 10, gap: 6 }}>
+          {plans.length === 0 ? (
+            <Pressable accessibilityRole="button" onPress={() => router.push('/plan')} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
+              <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: c.ink3 }}>＋ Plan your day (optional)</Text>
+            </Pressable>
+          ) : (
+            <>
+              <Pressable accessibilityRole="button" accessibilityLabel="Edit today’s plan" onPress={() => router.push('/plan')} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Eyebrow>
+                  Plan · {planned.done}/{planned.total}
+                </Eyebrow>
+                <Text style={{ fontFamily: fonts.bodySemi, fontSize: 12, color: c.ink3 }}>Edit ›</Text>
+              </Pressable>
+              {sortPlans(plans).map((p) => {
+                const done = !!p.entry_id;
+                return (
+                  <Pressable
+                    key={p.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ checked: done, disabled: done }}
+                    accessibilityLabel={done ? `${p.text}, done` : `Log ${p.text}`}
+                    disabled={done}
+                    onPress={() => onTick(p.id)}
+                    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, opacity: pressed ? 0.6 : 1 })}
+                  >
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 6,
+                        borderWidth: 2,
+                        borderColor: c.line,
+                        backgroundColor: done ? c.grid[3] : c.card,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {done && <Text style={{ fontSize: 11, color: c.onGreen, fontFamily: fonts.bodyBold }}>✓</Text>}
+                    </View>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        flex: 1,
+                        fontFamily: fonts.bodyMedium,
+                        fontSize: 14.5,
+                        color: done ? c.ink3 : c.ink,
+                        textDecorationLine: done ? 'line-through' : 'none',
+                      }}
+                    >
+                      {p.text}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </>
+          )}
+        </View>
       </Card>
 
       {/* 2. today at a glance */}
@@ -124,6 +195,15 @@ export default function Today() {
               </Text>
             ))}
             <Text style={{ fontFamily: fonts.body, fontSize: 12.5, color: c.ink3 }}>kudos today</Text>
+          </View>
+        )}
+        {latestNote && (
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', paddingRight: 18 }}>
+            <Text style={{ fontSize: 15 }}>{latestNote.avatar}</Text>
+            <Text numberOfLines={2} style={{ flex: 1, fontFamily: fonts.body, fontSize: 13.5, color: c.ink2 }}>
+              <Text style={{ fontFamily: fonts.bodyBold, color: c.ink }}>{latestNote.name}:</Text> “{latestNote.note}”
+              {notes.length > 1 ? <Text style={{ color: c.ink3 }}> +{notes.length - 1} more</Text> : null}
+            </Text>
           </View>
         )}
       </TapCard>

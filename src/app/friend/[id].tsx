@@ -11,14 +11,14 @@ export default function Friend() {
   const c = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
-  const { members, toggleKudo } = useSquads();
+  const { members, toggleKudo, sendNote } = useSquads();
   const me = session?.user.id;
   const f = members.find((m) => m.id === id);
 
   return (
     <DetailScreen title={f ? (f.id === me ? 'You' : f.display_name || 'Someone') : 'Friend'}>
       {f ? (
-        <MemberCard member={f} isMe={f.id === me} myId={me} onKudo={(e) => toggleKudo(f.id, e).catch(() => {})} />
+        <MemberCard member={f} isMe={f.id === me} myId={me} onKudo={(e) => toggleKudo(f.id, e).catch(() => {})} onNote={(n) => sendNote(f.id, n)} />
       ) : (
         <Body style={{ color: c.ink3 }}>This person isn’t in the squad any more.</Body>
       )}
