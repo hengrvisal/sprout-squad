@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { MonthGrid, MonthHeader, MonthSummary } from '@/components/MonthGrid';
 import { Screen } from '@/components/Screen';
-import { Body, Button, Card, Chip, Dot, Eyebrow, H, Mono } from '@/components/ui';
+import { Body, Button, Card, Chip, Chunky, Dot, Eyebrow, H, Mono } from '@/components/ui';
 import { useEntries } from '@/hooks/entries';
 import { CATEGORIES, CategoryKey, categoryColor } from '@/lib/categories';
 import { monthAt, streak, weekTotal } from '@/lib/dates';
@@ -47,24 +47,23 @@ export default function Today() {
     <Screen>
       {error && <Body style={{ color: c.tang }}>{error}</Body>}
 
-      <Card bg={c.tang} style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        <View>
-          <Eyebrow style={{ color: c.tangInk, opacity: 0.7 }}>Today</Eyebrow>
-          <Text style={{ fontFamily: fonts.display, fontSize: 64, lineHeight: 62, color: c.tangInk, letterSpacing: -2 }}>
-            {today.length}
-          </Text>
-          <Text style={{ fontFamily: fonts.bodyBold, fontSize: 14, color: c.tangInk }}>
-            {today.length === 1 ? 'thing done' : 'things done'}
-          </Text>
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: 2 }}>
-          <Eyebrow style={{ color: c.tangInk, opacity: 0.7 }}>Streak</Eyebrow>
-          <Mono style={{ fontSize: 22, color: c.tangInk }}>{streak(counts)}d</Mono>
-          <Eyebrow style={{ color: c.tangInk, opacity: 0.7 }}>This week</Eyebrow>
-          <Mono style={{ fontSize: 22, color: c.tangInk }}>{weekTotal(counts)}</Mono>
-        </View>
-      </Card>
+      <Chunky bg={c.tang} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, gap: 12 }}>
+        <Text style={{ fontFamily: fonts.display, fontSize: 40, lineHeight: 42, color: c.tangInk, letterSpacing: -1.5 }}>
+          {today.length}
+        </Text>
+        <Text style={{ flex: 1, fontFamily: fonts.bodyBold, fontSize: 14, lineHeight: 17, color: c.tangInk }}>
+          {today.length === 1 ? 'thing done' : 'things done'}
+          {'\n'}today
+        </Text>
+        <Stat label="Streak" value={`${streak(counts)}d`} />
+        <Stat label="Week" value={String(weekTotal(counts))} />
+      </Chunky>
 
+      <Card>
+        <MonthHeader y={y} m={m} offset={offset} onChange={onMonth} />
+        <MonthGrid y={y} m={m} counts={counts} />
+        <MonthSummary counts={counts} y={y} m={m} />
+      </Card>
       <Card>
         <H>What did you get done?</H>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
@@ -142,11 +141,16 @@ export default function Today() {
         )}
       </Card>
 
-      <Card>
-        <MonthHeader y={y} m={m} offset={offset} onChange={onMonth} />
-        <MonthGrid y={y} m={m} counts={counts} />
-        <MonthSummary counts={counts} y={y} m={m} />
-      </Card>
     </Screen>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  const c = useColors();
+  return (
+    <View style={{ alignItems: 'flex-end' }}>
+      <Eyebrow style={{ color: c.tangInk, opacity: 0.7, fontSize: 10 }}>{label}</Eyebrow>
+      <Mono style={{ fontSize: 20, color: c.tangInk }}>{value}</Mono>
+    </View>
   );
 }

@@ -1,0 +1,639 @@
+From 7036e5b4ac026dabb93062e13f8c8d07b0591f8b Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 29 Sep 2026 11:33:58 +1000
+Subject: [PATCH] Intro slides, on-device cache, grid above the fold
+
+- onboarding route (welcome, why, how it works) shown once per account,
+  tracked in profiles.onboarded_at (migration 0002)
+- cache profile + entries per user in AsyncStorage for instant launch and
+  offline reading; cleared on sign-out
+- Today: compact stats strip and month grid first, logging below
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01TxKRcG1YQg7QDeH4Nc6eNt
+---
+ README.md                               |   5 +-
+ src/app/(tabs)/index.tsx                |  50 +++---
+ src/app/_layout.tsx                     |  16 +-
+ src/app/onboarding.tsx                  | 226 ++++++++++++++++++++++++
+ src/hooks/auth.tsx                      |   9 +-
+ src/hooks/entries.tsx                   |  25 ++-
+ src/hooks/profile.tsx                   |  68 +++++--
+ src/lib/cache.ts                        |  28 +++
+ supabase/migrations/0002_onboarding.sql |   3 +
+ 9 files changed, 381 insertions(+), 49 deletions(-)
+ create mode 100644 src/app/onboarding.tsx
+ create mode 100644 src/lib/cache.ts
+ create mode 100644 supabase/migrations/0002_onboarding.sql
+
+diff --git a/README.md b/README.md
+index 3547878..33dd33e 100644
+--- a/README.md
++++ b/README.md
+@@ -14,7 +14,7 @@ Expo (SDK 57) · Expo Router · TypeScript · Supabase
+ 
+ 2. **Supabase project**
+    - Create a project at supabase.com.
+-   - SQL editor → paste and run `supabase/migrations/0001_init.sql`
++   - SQL editor → paste and run each file in `supabase/migrations/` in order
+      (or `supabase db push` if you use the Supabase CLI).
+    - **Auth → Email templates → Magic Link**: put the code in the email, e.g.
+      `Your Sprout Squad code is {{ .Token }}`. The app signs in with a one-time code, not a link,
+@@ -59,7 +59,7 @@ supabase/migrations/   schema + RLS
+ 
+ ## Data model
+ 
+-- `profiles` (1 per user, auto-created on sign-up): `display_name`, `emoji`
++- `profiles` (1 per user, auto-created on sign-up): `display_name`, `emoji`, `onboarded_at` (null until the intro is finished)
+ - `entries`: one row per thing done: `text`, `category`, `done_on` (the user's **local** date, set by the app)
+ - `day_counts(from, to)` RPC: per-day totals for the grid, aggregated server-side
+ 
+@@ -68,6 +68,7 @@ RLS: in phase 1 you can only read and write your own rows.
+ ## Roadmap
+ 
+ - [x] **Phase 1 · Solo loop**: sign-in, log/remove today's wins, monthly grid with month navigation, streak, profile
++- [x] **Phase 1.1**: intro slides for new users, on-device cache (instant launch, offline read), grid above the fold
+ - [ ] **Phase 2 · Squads**: invite code, squad membership, friends' grids + today list, RLS widened to squad members
+ - [ ] **Phase 3 · Kudos + nudges**: 🔥👏💪🌱 reactions, push notifications (kudos received, gentle evening reminder)
+ - [ ] **Later · Rewind**: yearly recap: 12-month grid, top categories, longest streak, busiest month
+diff --git a/src/app/(tabs)/index.tsx b/src/app/(tabs)/index.tsx
+index 59b4633..23c759c 100644
+--- a/src/app/(tabs)/index.tsx
++++ b/src/app/(tabs)/index.tsx
+@@ -2,7 +2,7 @@ import { useState } from 'react';
+ import { Pressable, Text, TextInput, View } from 'react-native';
+ import { MonthGrid, MonthHeader, MonthSummary } from '@/components/MonthGrid';
+ import { Screen } from '@/components/Screen';
+-import { Body, Button, Card, Chip, Dot, Eyebrow, H, Mono } from '@/components/ui';
++import { Body, Button, Card, Chip, Chunky, Dot, Eyebrow, H, Mono } from '@/components/ui';
+ import { useEntries } from '@/hooks/entries';
+ import { CATEGORIES, CategoryKey, categoryColor } from '@/lib/categories';
+ import { monthAt, streak, weekTotal } from '@/lib/dates';
+@@ -47,24 +47,23 @@ export default function Today() {
+     <Screen>
+       {error && <Body style={{ color: c.tang }}>{error}</Body>}
+ 
+-      <Card bg={c.tang} style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+-        <View>
+-          <Eyebrow style={{ color: c.tangInk, opacity: 0.7 }}>Today</Eyebrow>
+-          <Text style={{ fontFamily: fonts.display, fontSize: 64, lineHeight: 62, color: c.tangInk, letterSpacing: -2 }}>
+-            {today.length}
+-          </Text>
+-          <Text style={{ fontFamily: fonts.bodyBold, fontSize: 14, color: c.tangInk }}>
+-            {today.length === 1 ? 'thing done' : 'things done'}
+-          </Text>
+-        </View>
+-        <View style={{ alignItems: 'flex-end', gap: 2 }}>
+-          <Eyebrow style={{ color: c.tangInk, opacity: 0.7 }}>Streak</Eyebrow>
+-          <Mono style={{ fontSize: 22, color: c.tangInk }}>{streak(counts)}d</Mono>
+-          <Eyebrow style={{ color: c.tangInk, opacity: 0.7 }}>This week</Eyebrow>
+-          <Mono style={{ fontSize: 22, color: c.tangInk }}>{weekTotal(counts)}</Mono>
+-        </View>
+-      </Card>
++      <Chunky bg={c.tang} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, gap: 12 }}>
++        <Text style={{ fontFamily: fonts.display, fontSize: 40, lineHeight: 42, color: c.tangInk, letterSpacing: -1.5 }}>
++          {today.length}
++        </Text>
++        <Text style={{ flex: 1, fontFamily: fonts.bodyBold, fontSize: 14, lineHeight: 17, color: c.tangInk }}>
++          {today.length === 1 ? 'thing done' : 'things done'}
++          {'\n'}today
++        </Text>
++        <Stat label="Streak" value={`${streak(counts)}d`} />
++        <Stat label="Week" value={String(weekTotal(counts))} />
++      </Chunky>
+ 
++      <Card>
++        <MonthHeader y={y} m={m} offset={offset} onChange={onMonth} />
++        <MonthGrid y={y} m={m} counts={counts} />
++        <MonthSummary counts={counts} y={y} m={m} />
++      </Card>
+       <Card>
+         <H>What did you get done?</H>
+         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+@@ -142,11 +141,16 @@ export default function Today() {
+         )}
+       </Card>
+ 
+-      <Card>
+-        <MonthHeader y={y} m={m} offset={offset} onChange={onMonth} />
+-        <MonthGrid y={y} m={m} counts={counts} />
+-        <MonthSummary counts={counts} y={y} m={m} />
+-      </Card>
+     </Screen>
+   );
+ }
++
++function Stat({ label, value }: { label: string; value: string }) {
++  const c = useColors();
++  return (
++    <View style={{ alignItems: 'flex-end' }}>
++      <Eyebrow style={{ color: c.tangInk, opacity: 0.7, fontSize: 10 }}>{label}</Eyebrow>
++      <Mono style={{ fontSize: 20, color: c.tangInk }}>{value}</Mono>
++    </View>
++  );
++}
+diff --git a/src/app/_layout.tsx b/src/app/_layout.tsx
+index be8291c..0eace01 100644
+--- a/src/app/_layout.tsx
++++ b/src/app/_layout.tsx
+@@ -8,25 +8,33 @@ import { ActivityIndicator, View } from 'react-native';
+ import { SafeAreaProvider } from 'react-native-safe-area-context';
+ import { AuthProvider, useAuth } from '@/hooks/auth';
+ import { EntriesProvider } from '@/hooks/entries';
+-import { ProfileProvider } from '@/hooks/profile';
++import { ProfileProvider, useProfile } from '@/hooks/profile';
+ import { useColors } from '@/theme/tokens';
+ 
+ function RootStack() {
+   const { session, loading } = useAuth();
++  const { profile, ready } = useProfile();
+   const c = useColors();
+-  if (loading) {
++  const signedIn = !!session;
++  // Wait until we know whether this user has seen the intro, so it never flashes.
++  if (loading || (signedIn && !ready)) {
+     return (
+       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.ground }}>
+         <ActivityIndicator color={c.ink} />
+       </View>
+     );
+   }
++  // A profile that couldn't load (offline, first launch) skips the intro rather than blocking the app.
++  const needsIntro = signedIn && !!profile && !profile.onboarded_at;
+   return (
+     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.ground } }}>
+-      <Stack.Protected guard={!!session}>
++      <Stack.Protected guard={signedIn && !needsIntro}>
+         <Stack.Screen name="(tabs)" />
+       </Stack.Protected>
+-      <Stack.Protected guard={!session}>
++      <Stack.Protected guard={needsIntro}>
++        <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
++      </Stack.Protected>
++      <Stack.Protected guard={!signedIn}>
+         <Stack.Screen name="sign-in" />
+       </Stack.Protected>
+     </Stack>
+diff --git a/src/app/onboarding.tsx b/src/app/onboarding.tsx
+new file mode 100644
+index 0000000..22ab1ba
+--- /dev/null
++++ b/src/app/onboarding.tsx
+@@ -0,0 +1,226 @@
++import { useMemo, useRef, useState } from 'react';
++import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
++import { SafeAreaView } from 'react-native-safe-area-context';
++import { MonthGrid } from '@/components/MonthGrid';
++import { Avatar } from '@/components/Screen';
++import { Body, Button, Chunky, Dot, Eyebrow, Mono } from '@/components/ui';
++import { useProfile } from '@/hooks/profile';
++import { categoryColor } from '@/lib/categories';
++import { DayCounts, monthAt, monthRange, ymd } from '@/lib/dates';
++import { fonts, radius, useColors } from '@/theme/tokens';
++
++/** Deterministic example counts for the current month, so the illustrations look alive. */
++function sampleCounts(seed: number, rate: number): DayCounts {
++  const { y, m } = monthAt(0);
++  const { from } = monthRange(y, m);
++  const out: DayCounts = {};
++  let s = seed;
++  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
++  const d = new Date(`${from}T00:00:00`);
++  const today = new Date();
++  while (d <= today) {
++    if (rnd() < rate) out[ymd(d)] = 1 + Math.floor(rnd() * 5);
++    d.setDate(d.getDate() + 1);
++  }
++  return out;
++}
++
++function Title({ children }: { children: string }) {
++  const c = useColors();
++  return (
++    <Text style={{ fontFamily: fonts.display, fontSize: 38, lineHeight: 40, color: c.ink, letterSpacing: -1 }}>{children}</Text>
++  );
++}
++
++function WelcomeSlide() {
++  const c = useColors();
++  const { y, m } = monthAt(0);
++  const counts = useMemo(() => sampleCounts(7, 0.75), []);
++  return (
++    <View style={{ gap: 22 }}>
++      <View style={{ gap: 10 }}>
++        <Eyebrow>Welcome</Eyebrow>
++        <Title>Welcome to Sprout Squad</Title>
++        <Body style={{ fontSize: 16, color: c.ink2 }}>
++          Each day, write down what you got done. Every win turns that day’s square a little greener.
++        </Body>
++      </View>
++      <Chunky style={{ padding: 14, gap: 10 }}>
++        <Eyebrow>An example month</Eyebrow>
++        <MonthGrid y={y} m={m} counts={counts} mini gap={4} />
++      </Chunky>
++    </View>
++  );
++}
++
++function PurposeSlide() {
++  const c = useColors();
++  const { y, m } = monthAt(0);
++  const friends = useMemo(
++    () => [
++      { emoji: '🐸', name: 'Mia', counts: sampleCounts(11, 0.8), kudos: '🔥 3' },
++      { emoji: '🐙', name: 'Jun', counts: sampleCounts(29, 0.55), kudos: '👏 2' },
++      { emoji: '🌻', name: 'Ari', counts: sampleCounts(53, 0.65), kudos: '💪 4' },
++    ],
++    [],
++  );
++  return (
++    <View style={{ gap: 22 }}>
++      <View style={{ gap: 10 }}>
++        <Eyebrow>Why</Eyebrow>
++        <Title>Motivation is better with friends</Title>
++        <Body style={{ fontSize: 16, color: c.ink2 }}>
++          Seeing your friends’ grids fill up is a nudge to fill yours. There are no rankings and no leaderboard, just kudos
++          for showing up.
++        </Body>
++      </View>
++      <View style={{ flexDirection: 'row', gap: 10 }}>
++        {friends.map((f) => (
++          <View key={f.name} style={{ flex: 1 }}>
++            <Chunky style={{ padding: 10, gap: 8 }}>
++              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
++                <Avatar emoji={f.emoji} size={24} />
++                <Text style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: c.ink }}>{f.name}</Text>
++              </View>
++              <MonthGrid y={y} m={m} counts={f.counts} mini gap={2} />
++              <View
++                style={{
++                  alignSelf: 'flex-start',
++                  borderWidth: 2,
++                  borderColor: c.line,
++                  borderRadius: radius.pill,
++                  paddingHorizontal: 8,
++                  paddingVertical: 2,
++                  backgroundColor: c.lilac,
++                }}
++              >
++                <Text style={{ fontFamily: fonts.mono, fontSize: 11, color: c.tangInk }}>{f.kudos}</Text>
++              </View>
++            </Chunky>
++          </View>
++        ))}
++      </View>
++    </View>
++  );
++}
++
++function HowSlide() {
++  const c = useColors();
++  const steps = [
++    {
++      title: 'Log a win',
++      body: 'Anything productive counts: a lecture, a shift, a run, clearing the laundry pile.',
++      demo: (
++        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
++          <Dot color={categoryColor('study')} />
++          <Body style={{ flex: 1, fontSize: 14 }}>Finished assignment draft</Body>
++          <Mono style={{ fontSize: 11, color: c.ink3 }}>now</Mono>
++        </View>
++      ),
++    },
++    {
++      title: 'Watch your square',
++      body: 'More wins, greener square. Log something every day to keep your streak.',
++      demo: (
++        <View style={{ flexDirection: 'row', gap: 6 }}>
++          {c.grid.map((g, i) => (
++            <View key={g} style={{ width: 26, height: 26, borderRadius: 7, backgroundColor: g, borderWidth: i === 4 ? 2.5 : 0, borderColor: c.ink }} />
++          ))}
++        </View>
++      ),
++    },
++    {
++      title: 'Share with your squad',
++      body: 'Friends see your grid and send kudos. Squads are coming soon.',
++      demo: null,
++    },
++  ];
++  return (
++    <View style={{ gap: 22 }}>
++      <View style={{ gap: 10 }}>
++        <Eyebrow>How it works</Eyebrow>
++        <Title>Three steps, once a day</Title>
++      </View>
++      <View style={{ gap: 12 }}>
++        {steps.map((s, i) => (
++          <Chunky key={s.title} style={{ padding: 14, gap: 8 }}>
++            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
++              <View
++                style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: c.grid[3], borderWidth: 2, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}
++              >
++                <Text style={{ fontFamily: fonts.display, fontSize: 13, color: c.onGreen }}>{i + 1}</Text>
++              </View>
++              <Text style={{ fontFamily: fonts.displayBold, fontSize: 17, color: c.ink }}>{s.title}</Text>
++            </View>
++            <Body style={{ fontSize: 14, color: c.ink2 }}>{s.body}</Body>
++            {s.demo}
++          </Chunky>
++        ))}
++      </View>
++    </View>
++  );
++}
++
++const SLIDES = [WelcomeSlide, PurposeSlide, HowSlide];
++
++export default function Onboarding() {
++  const c = useColors();
++  const { width } = useWindowDimensions();
++  const { finishOnboarding } = useProfile();
++  const scroller = useRef<ScrollView>(null);
++  const [page, setPage] = useState(0);
++  const last = page === SLIDES.length - 1;
++
++  function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
++    const p = Math.round(e.nativeEvent.contentOffset.x / width);
++    if (p !== page) setPage(p);
++  }
++
++  function next() {
++    if (last) return finishOnboarding();
++    scroller.current?.scrollTo({ x: (page + 1) * width, animated: true });
++    setPage(page + 1);
++  }
++
++  return (
++    <SafeAreaView style={{ flex: 1, backgroundColor: c.ground }}>
++      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 20, paddingTop: 8, minHeight: 40 }}>
++        {!last && (
++          <Pressable accessibilityRole="button" onPress={finishOnboarding} hitSlop={10}>
++            <Text style={{ fontFamily: fonts.bodyBold, fontSize: 15, color: c.ink2 }}>Skip</Text>
++          </Pressable>
++        )}
++      </View>
++
++      <ScrollView
++        ref={scroller}
++        horizontal
++        pagingEnabled
++        showsHorizontalScrollIndicator={false}
++        onScroll={onScroll}
++        scrollEventThrottle={32}
++        style={{ flex: 1 }}
++      >
++        {SLIDES.map((Slide, i) => (
++          <ScrollView key={i} style={{ width }} contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16, flexGrow: 1, justifyContent: 'center' }}>
++            <View style={{ width: '100%', maxWidth: 440, alignSelf: 'center' }}>
++              <Slide />
++            </View>
++          </ScrollView>
++        ))}
++      </ScrollView>
++
++      <View style={{ paddingHorizontal: 20, paddingBottom: 16, gap: 16, width: '100%', maxWidth: 480, alignSelf: 'center' }}>
++        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }} accessibilityLabel={`Slide ${page + 1} of ${SLIDES.length}`}>
++          {SLIDES.map((_, i) => (
++            <View
++              key={i}
++              style={{ width: i === page ? 22 : 8, height: 8, borderRadius: 4, backgroundColor: i === page ? c.ink : c.ink3, opacity: i === page ? 1 : 0.4 }}
++            />
++          ))}
++        </View>
++        <Button label={last ? 'Start growing' : 'Next'} onPress={next} />
++      </View>
++    </SafeAreaView>
++  );
++}
+diff --git a/src/hooks/auth.tsx b/src/hooks/auth.tsx
+index 4fc31c8..65926be 100644
+--- a/src/hooks/auth.tsx
++++ b/src/hooks/auth.tsx
+@@ -1,5 +1,6 @@
+ import type { Session } from '@supabase/supabase-js';
+ import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
++import { clearCache } from '@/lib/cache';
+ import { supabase } from '@/lib/supabase';
+ 
+ type AuthState = { session: Session | null; loading: boolean };
+@@ -32,4 +33,10 @@ export async function verifyCode(email: string, token: string) {
+   if (error) throw error;
+ }
+ 
+-export const signOut = () => supabase.auth.signOut();
++/** Sign out and wipe this user's cached data from the phone. */
++export async function signOut() {
++  const { data } = await supabase.auth.getSession();
++  const uid = data.session?.user.id;
++  await supabase.auth.signOut();
++  if (uid) await clearCache(uid);
++}
+diff --git a/src/hooks/entries.tsx b/src/hooks/entries.tsx
+index 466bdd1..10915d5 100644
+--- a/src/hooks/entries.tsx
++++ b/src/hooks/entries.tsx
+@@ -1,6 +1,7 @@
+ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+ import { AppState } from 'react-native';
+ import type { CategoryKey } from '@/lib/categories';
++import { readCache, writeCache } from '@/lib/cache';
+ import { addDays, DayCounts, DayKey, monthRange, ymd } from '@/lib/dates';
+ import { supabase } from '@/lib/supabase';
+ import { useAuth } from './auth';
+@@ -45,6 +46,25 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState<string | null>(null);
+   const loadedFrom = useRef<DayKey | null>(null);
++  const fetched = useRef(false);
++
++  // Show the last-known data straight away (and offline); the network refresh replaces it.
++  useEffect(() => {
++    if (!userId) return;
++    readCache<{ counts: DayCounts; today: Entry[]; todayKey: DayKey }>(userId, 'entries').then((c) => {
++      if (!c || fetched.current) return;
++      setCounts(c.counts);
++      // yesterday's "today" list is stale after midnight
++      if (c.todayKey === ymd(new Date())) setToday(c.today);
++      setLoading(false);
++    });
++  }, [userId]);
++
++  // Keep the cache in step with what's on screen (skipping optimistic temp rows).
++  useEffect(() => {
++    if (!userId || loading) return;
++    writeCache(userId, 'entries', { counts, today: today.filter((e) => !e.id.startsWith('temp-')), todayKey });
++  }, [userId, loading, counts, today, todayKey]);
+ 
+   const fetchCounts = useCallback(async (from: DayKey, to: DayKey) => {
+     const { data, error } = await supabase.rpc('day_counts', { p_from: from, p_to: to });
+@@ -69,6 +89,7 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
+           .order('created_at', { ascending: false }),
+       ]);
+       if (t.error) throw t.error;
++      fetched.current = true;
+       setTodayKey(key);
+       setCounts((prev) => {
+         // keep older months loaded via ensureMonth, replace the window
+@@ -78,8 +99,8 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
+       setToday((t.data ?? []) as Entry[]);
+       loadedFrom.current = loadedFrom.current && loadedFrom.current < from ? loadedFrom.current : from;
+       setError(null);
+-    } catch (e) {
+-      setError(e instanceof Error ? e.message : 'Could not load your entries.');
++    } catch {
++      setError('Couldn’t reach the server. Showing what’s saved on this phone.');
+     } finally {
+       setLoading(false);
+     }
+diff --git a/src/hooks/profile.tsx b/src/hooks/profile.tsx
+index 3979be0..54b30a1 100644
+--- a/src/hooks/profile.tsx
++++ b/src/hooks/profile.tsx
+@@ -1,12 +1,19 @@
+ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
++import { readCache, writeCache } from '@/lib/cache';
+ import { supabase } from '@/lib/supabase';
+ import { useAuth } from './auth';
+ 
+-export type Profile = { id: string; display_name: string; emoji: string };
++export type Profile = { id: string; display_name: string; emoji: string; onboarded_at: string | null };
++
++const COLUMNS = 'id,display_name,emoji,onboarded_at';
+ 
+ type ProfileState = {
+   profile: Profile | null;
++  /** True once we know this user's profile (from cache or server), so routing can decide. */
++  ready: boolean;
+   save: (patch: Partial<Pick<Profile, 'display_name' | 'emoji'>>) => Promise<void>;
++  /** Record that the intro has been seen (on this account, across devices). */
++  finishOnboarding: () => Promise<void>;
+ };
+ 
+ const Ctx = createContext<ProfileState | null>(null);
+@@ -14,36 +21,63 @@ const Ctx = createContext<ProfileState | null>(null);
+ export function ProfileProvider({ children }: { children: ReactNode }) {
+   const { session } = useAuth();
+   const id = session?.user.id;
+-  const [loaded, setProfile] = useState<Profile | null>(null);
+-  // Only expose the profile belonging to the signed-in user (clears on sign-out/switch).
++  const [loaded, setLoaded] = useState<Profile | null>(null);
++  const [readyFor, setReadyFor] = useState<string | null>(null);
++  // Only expose state belonging to the signed-in user (clears on sign-out/switch).
+   const profile = loaded && loaded.id === id ? loaded : null;
++  const ready = !!id && readyFor === id;
++
++  const put = useCallback((p: Profile) => {
++    setLoaded(p);
++    setReadyFor(p.id);
++    writeCache(p.id, 'profile', p);
++  }, []);
+ 
+   useEffect(() => {
+     if (!id) return;
++    let fetched = false;
++    readCache<Profile>(id, 'profile').then((c) => {
++      if (c && !fetched) {
++        setLoaded(c);
++        setReadyFor(id);
++      }
++    });
+     supabase
+       .from('profiles')
+-      .select('id,display_name,emoji')
++      .select(COLUMNS)
+       .eq('id', id)
+       .single()
+-      .then(({ data }) => setProfile((data as Profile | null) ?? null));
+-  }, [id]);
++      .then(({ data }) => {
++        fetched = true;
++        if (data) put(data as Profile);
++        else setReadyFor(id); // offline with no cache: let the app open rather than hang
++      });
++  }, [id, put]);
+ 
+-  const save = useCallback<ProfileState['save']>(
+-    async (patch) => {
++  const update = useCallback(
++    async (patch: Partial<Profile>) => {
+       if (!id) return;
+-      const { data, error } = await supabase
+-        .from('profiles')
+-        .update(patch)
+-        .eq('id', id)
+-        .select('id,display_name,emoji')
+-        .single();
++      const { data, error } = await supabase.from('profiles').update(patch).eq('id', id).select(COLUMNS).single();
+       if (error) throw error;
+-      setProfile(data as Profile);
++      put(data as Profile);
+     },
+-    [id],
++    [id, put],
+   );
+ 
+-  const value = useMemo(() => ({ profile, save }), [profile, save]);
++  const save = useCallback<ProfileState['save']>((patch) => update(patch), [update]);
++
++  const finishOnboarding = useCallback(async () => {
++    const at = new Date().toISOString();
++    // Let them in immediately; the server write catches up.
++    if (profile) setLoaded({ ...profile, onboarded_at: at });
++    try {
++      await update({ onboarded_at: at });
++    } catch {
++      // Not fatal: worst case they see the intro once more on another device.
++    }
++  }, [profile, update]);
++
++  const value = useMemo(() => ({ profile, ready, save, finishOnboarding }), [profile, ready, save, finishOnboarding]);
+   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+ }
+ 
+diff --git a/src/lib/cache.ts b/src/lib/cache.ts
+new file mode 100644
+index 0000000..2850ab4
+--- /dev/null
++++ b/src/lib/cache.ts
+@@ -0,0 +1,28 @@
++import AsyncStorage from '@react-native-async-storage/async-storage';
++
++/**
++ * Tiny per-user JSON cache on the device. Used to show the last-known profile and
++ * entries instantly on launch (and offline); Supabase stays the source of truth.
++ */
++const k = (userId: string, name: string) => `sprout:v1:${userId}:${name}`;
++
++export async function readCache<T>(userId: string, name: string): Promise<T | null> {
++  try {
++    const raw = await AsyncStorage.getItem(k(userId, name));
++    return raw ? (JSON.parse(raw) as T) : null;
++  } catch {
++    return null;
++  }
++}
++
++export function writeCache(userId: string, name: string, value: unknown): void {
++  AsyncStorage.setItem(k(userId, name), JSON.stringify(value)).catch(() => {});
++}
++
++/** Remove everything cached for a user (on sign-out). */
++export async function clearCache(userId: string): Promise<void> {
++  try {
++    const keys = await AsyncStorage.getAllKeys();
++    await AsyncStorage.multiRemove(keys.filter((key) => key.startsWith(`sprout:v1:${userId}:`)));
++  } catch {}
++}
+diff --git a/supabase/migrations/0002_onboarding.sql b/supabase/migrations/0002_onboarding.sql
+new file mode 100644
+index 0000000..63cbaa1
+--- /dev/null
++++ b/supabase/migrations/0002_onboarding.sql
+@@ -0,0 +1,3 @@
++-- Sprout Squad · track whether a user has seen the intro slides.
++-- Stored on the account (not the phone) so it follows them to a new device.
++alter table public.profiles add column onboarded_at timestamptz;
+-- 
+2.43.0
+

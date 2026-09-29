@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { clearCache } from '@/lib/cache';
 import { supabase } from '@/lib/supabase';
 
 type AuthState = { session: Session | null; loading: boolean };
@@ -32,4 +33,10 @@ export async function verifyCode(email: string, token: string) {
   if (error) throw error;
 }
 
-export const signOut = () => supabase.auth.signOut();
+/** Sign out and wipe this user's cached data from the phone. */
+export async function signOut() {
+  const { data } = await supabase.auth.getSession();
+  const uid = data.session?.user.id;
+  await supabase.auth.signOut();
+  if (uid) await clearCache(uid);
+}

@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import type { CategoryKey } from '@/lib/categories';
+import { readCache, writeCache } from '@/lib/cache';
 import { addDays, DayCounts, DayKey, monthRange, ymd } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './auth';
@@ -45,6 +46,25 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadedFrom = useRef<DayKey | null>(null);
+  const fetched = useRef(false);
+
+  // Show the last-known data straight away (and offline); the network refresh replaces it.
+  useEffect(() => {
+    if (!userId) return;
+    readCache<{ counts: DayCounts; today: Entry[]; todayKey: DayKey }>(userId, 'entries').then((c) => {
+      if (!c || fetched.current) return;
+      setCounts(c.counts);
+      // yesterday's "today" list is stale after midnight
+      if (c.todayKey === ymd(new Date())) setToday(c.today);
+      setLoading(false);
+    });
+  }, [userId]);
+
+  // Keep the cache in step with what's on screen (skipping optimistic temp rows).
+  useEffect(() => {
+    if (!userId || loading) return;
+    writeCache(userId, 'entries', { counts, today: today.filter((e) => !e.id.startsWith('temp-')), todayKey });
+  }, [userId, loading, counts, today, todayKey]);
 
   const fetchCounts = useCallback(async (from: DayKey, to: DayKey) => {
     const { data, error } = await supabase.rpc('day_counts', { p_from: from, p_to: to });
@@ -69,6 +89,7 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
           .order('created_at', { ascending: false }),
       ]);
       if (t.error) throw t.error;
+      fetched.current = true;
       setTodayKey(key);
       setCounts((prev) => {
         // keep older months loaded via ensureMonth, replace the window
@@ -78,8 +99,8 @@ function EntriesStore({ children, userId }: { children: ReactNode; userId: strin
       setToday((t.data ?? []) as Entry[]);
       loadedFrom.current = loadedFrom.current && loadedFrom.current < from ? loadedFrom.current : from;
       setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load your entries.');
+    } catch {
+      setError('Couldn’t reach the server. Showing what’s saved on this phone.');
     } finally {
       setLoading(false);
     }

@@ -1,12 +1,19 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { readCache, writeCache } from '@/lib/cache';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './auth';
 
-export type Profile = { id: string; display_name: string; emoji: string };
+export type Profile = { id: string; display_name: string; emoji: string; onboarded_at: string | null };
+
+const COLUMNS = 'id,display_name,emoji,onboarded_at';
 
 type ProfileState = {
   profile: Profile | null;
+  /** True once we know this user's profile (from cache or server), so routing can decide. */
+  ready: boolean;
   save: (patch: Partial<Pick<Profile, 'display_name' | 'emoji'>>) => Promise<void>;
+  /** Record that the intro has been seen (on this account, across devices). */
+  finishOnboarding: () => Promise<void>;
 };
 
 const Ctx = createContext<ProfileState | null>(null);
@@ -14,36 +21,63 @@ const Ctx = createContext<ProfileState | null>(null);
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const id = session?.user.id;
-  const [loaded, setProfile] = useState<Profile | null>(null);
-  // Only expose the profile belonging to the signed-in user (clears on sign-out/switch).
+  const [loaded, setLoaded] = useState<Profile | null>(null);
+  const [readyFor, setReadyFor] = useState<string | null>(null);
+  // Only expose state belonging to the signed-in user (clears on sign-out/switch).
   const profile = loaded && loaded.id === id ? loaded : null;
+  const ready = !!id && readyFor === id;
+
+  const put = useCallback((p: Profile) => {
+    setLoaded(p);
+    setReadyFor(p.id);
+    writeCache(p.id, 'profile', p);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
+    let fetched = false;
+    readCache<Profile>(id, 'profile').then((c) => {
+      if (c && !fetched) {
+        setLoaded(c);
+        setReadyFor(id);
+      }
+    });
     supabase
       .from('profiles')
-      .select('id,display_name,emoji')
+      .select(COLUMNS)
       .eq('id', id)
       .single()
-      .then(({ data }) => setProfile((data as Profile | null) ?? null));
-  }, [id]);
+      .then(({ data }) => {
+        fetched = true;
+        if (data) put(data as Profile);
+        else setReadyFor(id); // offline with no cache: let the app open rather than hang
+      });
+  }, [id, put]);
 
-  const save = useCallback<ProfileState['save']>(
-    async (patch) => {
+  const update = useCallback(
+    async (patch: Partial<Profile>) => {
       if (!id) return;
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(patch)
-        .eq('id', id)
-        .select('id,display_name,emoji')
-        .single();
+      const { data, error } = await supabase.from('profiles').update(patch).eq('id', id).select(COLUMNS).single();
       if (error) throw error;
-      setProfile(data as Profile);
+      put(data as Profile);
     },
-    [id],
+    [id, put],
   );
 
-  const value = useMemo(() => ({ profile, save }), [profile, save]);
+  const save = useCallback<ProfileState['save']>((patch) => update(patch), [update]);
+
+  const finishOnboarding = useCallback(async () => {
+    const at = new Date().toISOString();
+    // Let them in immediately; the server write catches up.
+    if (profile) setLoaded({ ...profile, onboarded_at: at });
+    try {
+      await update({ onboarded_at: at });
+    } catch {
+      // Not fatal: worst case they see the intro once more on another device.
+    }
+  }, [profile, update]);
+
+  const value = useMemo(() => ({ profile, ready, save, finishOnboarding }), [profile, ready, save, finishOnboarding]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
