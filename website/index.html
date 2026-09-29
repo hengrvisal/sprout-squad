@@ -26,6 +26,7 @@
       <a class="brand" href="/" aria-label="Sprout Squad home"><span class="brand-mark"><img src="/mark.png" alt=""></span><span class="brand-name">Sprout Squad</span></a>
       <nav class="nav-links" aria-label="Main">
         <a href="#how">How it works</a>
+        <a href="#plant">Squad plant</a>
         <a href="#why">Why</a>
         <a href="#faq">FAQ</a>
         <a class="btn small" href="#join">Join the beta</a>
@@ -36,6 +37,8 @@
       <!-- ============ hero ============ -->
       <div class="hero">
         <div class="stage" data-parallax-root>
+          <!-- colour glow behind the phone; shifts to the colour of each new win -->
+          <div class="aurora bleed" aria-hidden="true" data-aurora><i></i><i></i><i></i></div>
           <!-- vines growing in from both screen edges, like hands reaching for the phone -->
           <div class="vines bleed" aria-hidden="true">
             <svg class="vine vine-l" viewBox="0 0 800 700" preserveAspectRatio="xMinYMid meet"
@@ -101,7 +104,7 @@
           <div class="join-row">
             <label for="email-top" hidden>Email</label>
             <input id="email-top" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
-            <button class="btn" type="submit">Join the beta</button>
+            <button class="btn green" type="submit">Join the beta</button>
           </div>
           <div class="phones" role="radiogroup" aria-label="Your phone">
             <span>My phone</span>
@@ -124,20 +127,20 @@
 
         <div class="features">
           <!-- 1 log -->
-          <article class="feature" data-reveal data-demo="type">
+          <article class="feature" data-reveal data-demo="type" style="--cat:#7CC4FF">
             <p class="label">Write down what you<br>actually got done</p>
             <div class="phone">
               <div class="screen">
                 <div class="app-top"><b><img src="/mark.png" alt="">Sprout Squad</b></div>
                 <div class="pcard">
                   <h4>What did you get done?</h4>
-                  <div class="typing"><div class="field"><span data-typed></span><span class="caret"></span></div><span class="go">Log</span></div>
-                  <div class="cats">
-                    <span class="on"><span class="dot" style="background:#7CC4FF"></span>Study</span>
-                    <span><span class="dot" style="background:#FFB443"></span>Work</span>
-                    <span><span class="dot" style="background:#B9A6FF"></span>Build</span>
-                    <span><span class="dot" style="background:#FF6F91"></span>Move</span>
-                    <span><span class="dot" style="background:#6FE0C8"></span>Home</span>
+                  <div class="typing"><input class="field" data-typed type="text" maxlength="60" autocomplete="off" placeholder="Try it: type a win" aria-label="Try it: type something you got done today"><button type="button" class="go">Log</button></div>
+                  <div class="cats" role="group" aria-label="Category">
+                    <button type="button" class="on" aria-pressed="true" data-c="#7CC4FF"><span class="dot" style="background:#7CC4FF"></span>Study</button>
+                    <button type="button" aria-pressed="false" data-c="#FFB443"><span class="dot" style="background:#FFB443"></span>Work</button>
+                    <button type="button" aria-pressed="false" data-c="#B9A6FF"><span class="dot" style="background:#B9A6FF"></span>Build</button>
+                    <button type="button" aria-pressed="false" data-c="#FF6F91"><span class="dot" style="background:#FF6F91"></span>Move</button>
+                    <button type="button" aria-pressed="false" data-c="#6FE0C8"><span class="dot" style="background:#6FE0C8"></span>Home</button>
                   </div>
                 </div>
                 <div class="pcard"><h4>Logged today</h4><div class="wins" data-typed-list></div></div>
@@ -147,7 +150,7 @@
           </article>
 
           <!-- 2 grid -->
-          <article class="feature" data-reveal data-demo="grid" style="--d:.1s">
+          <article class="feature" data-reveal data-demo="grid" style="--d:.1s;--cat:#3DBB57">
             <p class="label">Every win turns today<br>a shade greener</p>
             <div class="phone">
               <div class="screen">
@@ -159,7 +162,7 @@
           </article>
 
           <!-- 3 squad -->
-          <article class="feature" data-reveal data-demo="squad">
+          <article class="feature" data-reveal data-demo="squad" style="--cat:#B9A6FF">
             <p class="label">Up to 10 friends.<br>No strangers. No feed.</p>
             <div class="phone">
               <div class="screen">
@@ -178,7 +181,7 @@
           </article>
 
           <!-- 4 kudos -->
-          <article class="feature" data-reveal data-demo="kudos" style="--d:.1s">
+          <article class="feature" data-reveal data-demo="kudos" style="--d:.1s;--cat:#FF6F91">
             <p class="label">No likes. No rankings.<br>Just cheering each other on.</p>
             <div class="phone">
               <div class="screen">
@@ -187,25 +190,61 @@
                   <div class="app-top"><b style="font-size:13px"><span class="av">🌻</span>Ari</b><span class="mono" style="font-size:10px;color:var(--ink-3)">2 today · 6d</span></div>
                   <div class="friend-row"><div class="month mini" data-grid="ari"></div><div class="did"><div><span class="dot" style="background:#FFE45C"></span>Sketchbook page</div><div><span class="dot" style="background:#FF6F91"></span>Yoga, 30 min</div></div></div>
                   <div class="kudos" data-kudos>
-                    <button type="button" tabindex="-1" data-k="🔥">🔥<b>2</b></button>
-                    <button type="button" tabindex="-1" data-k="👏">👏<b>1</b></button>
-                    <button type="button" tabindex="-1" data-k="💪">💪<b></b></button>
-                    <button type="button" tabindex="-1" data-k="🌱">🌱<b></b></button>
+                    <button type="button" aria-pressed="false" aria-label="Send 🔥" data-k="🔥">🔥<b>2</b></button>
+                    <button type="button" aria-pressed="false" aria-label="Send 👏" data-k="👏">👏<b>1</b></button>
+                    <button type="button" aria-pressed="false" aria-label="Send 💪" data-k="💪">💪<b></b></button>
+                    <button type="button" aria-pressed="false" aria-label="Send 🌱" data-k="🌱">🌱<b></b></button>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="caption"><h3>Send kudos</h3><p>🔥 👏 💪 🌱 in one tap. It’s encouragement, not competition.</p></div>
+            <div class="caption"><h3>Send kudos</h3><p>Go on, tap one. 🔥 👏 💪 🌱 It’s encouragement, not competition.</p></div>
           </article>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- ============ marquee ============ -->
-  <div class="marquee" aria-label="Things people log">
-    <div class="track" data-marquee></div>
+  <!-- ============ crossed bands ============ -->
+  <div class="bands" aria-hidden="true">
+    <div class="band band-b"><div class="track rev" data-marquee="kudos"></div></div>
+    <div class="band band-a"><div class="track" data-marquee="wins"></div></div>
   </div>
+
+  <!-- ============ squad plant (scroll to grow) ============ -->
+  <section id="plant" class="plant-sec" data-plant>
+    <div class="plant-sticky">
+      <div class="plant-word" aria-hidden="true" data-stage-word>Seed</div>
+      <div class="plant-inner">
+        <div class="plant-copy">
+          <p class="label">The squad plant</p>
+          <h2>One plant. The whole squad grows it.</h2>
+          <ul class="plant-steps">
+            <li data-step="0"><b>Log anything, it grows.</b><span>Your first win of the day counts the most.</span></li>
+            <li data-step="1"><b>Kudos count too.</b><span>Cheering a friend on waters the plant.</span></li>
+            <li data-step="2"><b>Everyone logs? Bonus growth.</b><span>A full squad day gives it a boost.</span></li>
+            <li data-step="3"><b>Go quiet and it gets thirsty.</b><span>A few days with no logs and it droops. One log perks it up.</span></li>
+          </ul>
+        </div>
+        <figure class="plant-fig">
+          <div class="plant-stage">
+            <div class="plant-sun" aria-hidden="true"></div>
+            <svg class="plant-svg" viewBox="0 0 200 220" role="img" aria-label="A squad plant growing from a seed to a fruiting bush" data-plant-svg></svg>
+            <div class="plant-chips" aria-hidden="true" data-plant-chips></div>
+          </div>
+          <figcaption class="plant-meter">
+            <div class="pm-top"><b data-pm-stage>Seed</b><span data-pm-health>Waiting for the first win</span></div>
+            <div class="pm-bar"><i data-pm-bar></i></div>
+            <div class="pm-squad">
+              <span class="pm-av" style="--m:#7CC4FF" data-pm-av>🐸</span><span class="pm-av" style="--m:#FF6F91" data-pm-av>🦊</span><span class="pm-av" style="--m:#FFB443" data-pm-av>🐙</span><span class="pm-av" style="--m:#B9A6FF" data-pm-av>🌻</span>
+              <small data-pm-today>0 of 4 logged today</small>
+            </div>
+          </figcaption>
+        </figure>
+      </div>
+      <p class="plant-hint" aria-hidden="true">Keep scrolling to grow it</p>
+    </div>
+  </section>
 
   <div class="wrap">
     <!-- ============ why / story ============ -->
@@ -222,6 +261,11 @@
           <div class="legend">less <i style="background:var(--g0)"></i><i style="background:var(--g1)"></i><i style="background:var(--g2)"></i><i style="background:var(--g3)"></i><i style="background:var(--g4)"></i> more</div>
         </div>
         <div class="year-scroll"><div class="year" data-year aria-label="An example year of wins"></div></div>
+        <div class="year-tools">
+          <p>Tap a square to paint it. Drag to paint a streak.</p>
+          <button type="button" class="chip-btn" data-year-clear>Clear</button>
+          <button type="button" class="chip-btn" data-year-example>Example year</button>
+        </div>
         <div class="year-stats">
           <div><b data-stat="days">0</b><span>green days</span></div>
           <div><b data-stat="wins">0</b><span>things done</span></div>
@@ -243,7 +287,8 @@
     </section>
 
     <!-- ============ final ============ -->
-    <section id="join">
+    <section id="join" class="final-band bleed">
+      <div class="final-glow" aria-hidden="true"><i></i><i></i></div>
       <div class="final">
         <img class="seed" src="/mark.png" alt="" data-reveal>
         <h2 data-reveal>Start your first green square.</h2>
@@ -252,7 +297,7 @@
           <div class="join-row">
             <label for="email-bottom" hidden>Email</label>
             <input id="email-bottom" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
-            <button class="btn" type="submit">Join the beta</button>
+            <button class="btn green" type="submit">Join the beta</button>
           </div>
           <div class="phones" role="radiogroup" aria-label="Your phone">
             <span>My phone</span>
