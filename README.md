@@ -66,6 +66,7 @@ supabase/migrations/   schema + RLS
 
 - `squads` / `squad_members`: a person can be in up to 10 squads of up to 10 people. Create, join and leave go through the `create_squad`, `join_squad`, `leave_squad` RPCs.
 - `squad_day_counts(squad, from, to)` RPC: per-member daily totals for the squad view
+- `kudos`: one row per (sender, recipient, day, emoji); only between squadmates, sender can take it back
 
 RLS: you write only your own rows. You can read your squadmates' profiles and entries, and nobody else's.
 
@@ -73,6 +74,8 @@ RLS: you write only your own rows. You can read your squadmates' profiles and en
 
 - [x] **Phase 1 · Solo loop**: sign-in, log/remove today's wins, monthly grid with month navigation, streak, profile
 - [x] **Phase 2 · Squads**: multiple squads (10 people max), invite codes, friends' grids + today list, squadmate-only read access
-- [ ] **Phase 3 · Kudos + nudges**: 🔥👏💪🌱 reactions, push notifications (kudos received, gentle evening reminder)
+- [x] **Phase 3a · Kudos**: 🔥👏💪🌱 on friends' cards, kudos received shown on Today
+- [ ] **Phase 3b · Dev build + push**: EAS development build, push for kudos received and a gentle evening reminder
+- [ ] **Phase 4 · iOS widget**: today prompt → your grid once you've logged, cycling through friends' grids
 - [ ] **Later · Rewind**: yearly recap: 12-month grid, top categories, longest streak, busiest month
 # sprout-squad

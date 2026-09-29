@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { MonthGrid, MonthHeader, MonthSummary } from '@/components/MonthGrid';
 import { Screen } from '@/components/Screen';
 import { Body, Button, Card, Chip, Chunky, Dot, Eyebrow, H, Mono } from '@/components/ui';
 import { useEntries } from '@/hooks/entries';
+import { useSquads } from '@/hooks/squads';
 import { CATEGORIES, CategoryKey, categoryColor } from '@/lib/categories';
 import { monthAt, streak, weekTotal } from '@/lib/dates';
+import { tally } from '@/lib/kudos';
 import { border, fonts, radius, useColors } from '@/theme/tokens';
 
 function ago(iso: string) {
@@ -23,6 +26,14 @@ export default function Today() {
   const [offset, setOffset] = useState(0);
   const [saveError, setSaveError] = useState<string | null>(null);
   const { y, m } = monthAt(offset);
+  const { received, refresh: refreshSquads } = useSquads();
+  // pick up kudos friends sent while you were away
+  useFocusEffect(
+    useCallback(() => {
+      refreshSquads();
+    }, [refreshSquads]),
+  );
+  const senders = [...new Set(received.map((k) => k.name))];
 
   async function onLog() {
     const t = text.trim().slice(0, 90);
@@ -102,6 +113,23 @@ export default function Today() {
 
       <Card>
         <H>Logged today</H>
+        {received.length > 0 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            {tally(received).map(([e, n]) => (
+              <View
+                key={e}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 2, borderColor: c.line, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: c.lilac }}
+              >
+                <Text style={{ fontSize: 14 }}>{e}</Text>
+                <Mono style={{ fontSize: 12, color: c.tangInk }}>{n}</Mono>
+              </View>
+            ))}
+            <Body style={{ fontSize: 13, color: c.ink2, flexShrink: 1 }}>
+              from {senders.slice(0, 2).join(', ')}
+              {senders.length > 2 ? ` and ${senders.length - 2} more` : ''}
+            </Body>
+          </View>
+        )}
         {today.length === 0 ? (
           <Body style={{ color: c.ink3, textAlign: 'center', paddingVertical: 8 }}>
             Nothing yet. Log one small win to light up today’s square.

@@ -15,7 +15,7 @@ export default function SquadTab() {
   const c = useColors();
   const { session } = useAuth();
   const me = session?.user.id;
-  const { squads, selected, select, members, loading, error, refresh, leave } = useSquads();
+  const { squads, selected, select, members, loading, error, refresh, leave, toggleKudo } = useSquads();
   const [adding, setAdding] = useState(false);
   const [pulling, setPulling] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -157,7 +157,7 @@ export default function SquadTab() {
               </Card>
             )}
             {others.map((x) => (
-              <MemberCard key={x.id} member={x} />
+              <MemberCard key={x.id} member={x} myId={me} onKudo={(e) => toggleKudo(x.id, e).catch(() => {})} />
             ))}
             {mine && <MemberCard member={mine} isMe />}
 

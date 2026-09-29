@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import { readCache, writeCache } from '@/lib/cache';
 import type { CategoryKey } from '@/lib/categories';
 import { addDays, DayCounts, DayKey, monthAt, monthRange, ymd } from '@/lib/dates';
+import type { Kudo, KudoEmoji } from '@/lib/kudos';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './auth';
 
@@ -13,7 +14,12 @@ export type Member = {
   emoji: string;
   counts: DayCounts;
   today: { id: string; text: string; category: CategoryKey; created_at: string }[];
+  /** Kudos this member got today, from anyone in any of their squads you can see. */
+  kudos: Kudo[];
 };
+
+/** Kudos you received today, with who sent them. */
+export type ReceivedKudo = Kudo & { name: string; avatar: string };
 
 type SquadsState = {
   squads: Squad[];
@@ -27,6 +33,9 @@ type SquadsState = {
   create: (name: string) => Promise<void>;
   join: (code: string) => Promise<void>;
   leave: (id: string) => Promise<void>;
+  /** Send or take back a kudo for a squadmate, for today. */
+  toggleKudo: (toUser: string, emoji: KudoEmoji) => Promise<void>;
+  received: ReceivedKudo[];
 };
 
 const Ctx = createContext<SquadsState | null>(null);
@@ -59,12 +68,13 @@ export function SquadsProvider({ children }: { children: ReactNode }) {
   );
 }
 
-type Cached = { squads: Squad[]; selectedId: string | null; members: Member[] };
+type Cached = { squads: Squad[]; selectedId: string | null; members: Member[]; received: ReceivedKudo[]; day: DayKey };
 
 function SquadsStore({ children, userId }: { children: ReactNode; userId: string | undefined }) {
   const [squads, setSquads] = useState<Squad[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  const [received, setReceived] = useState<ReceivedKudo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetched = useRef(false);
@@ -78,15 +88,18 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
       if (!c || fetched.current) return;
       setSquads(c.squads);
       setSelectedId(c.selectedId);
-      setMembers(c.members);
+      // older caches have no kudos field; yesterday's kudos don't belong on today
+      const fresh = c.day === ymd(new Date());
+      setMembers(c.members.map((m) => ({ ...m, kudos: fresh ? (m.kudos ?? []) : [] })));
+      setReceived(fresh ? (c.received ?? []) : []);
       setLoading(false);
     });
   }, [userId]);
 
   useEffect(() => {
     if (!userId || loading) return;
-    writeCache(userId, 'squads', { squads, selectedId: selected?.id ?? null, members } satisfies Cached);
-  }, [userId, loading, squads, selected?.id, members]);
+    writeCache(userId, 'squads', { squads, selectedId: selected?.id ?? null, members, received, day: ymd(new Date()) } satisfies Cached);
+  }, [userId, loading, squads, selected?.id, members, received]);
 
   const loadMembers = useCallback(async (squadId: string) => {
     const { from, to } = squadRange();
@@ -106,6 +119,10 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
           .order('created_at', { ascending: false })
       : { data: [], error: null };
     if (today.error) throw today.error;
+    const kudos = ids.length
+      ? await supabase.from('kudos').select('from_user, to_user, emoji').in('to_user', ids).eq('done_on', to)
+      : { data: [], error: null };
+    if (kudos.error) throw kudos.error;
 
     const byUser = new Map<string, Member>();
     for (const row of (mem.data ?? []) as unknown as { user_id: string; profiles: { display_name: string; emoji: string } | null }[]) {
@@ -115,6 +132,7 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
         emoji: row.profiles?.emoji ?? '🌱',
         counts: {},
         today: [],
+        kudos: [],
       });
     }
     for (const r of (counts.data ?? []) as { user_id: string; done_on: string; n: number }[]) {
@@ -124,8 +142,25 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
     for (const e of (today.data ?? []) as unknown as (Member['today'][number] & { user_id: string })[]) {
       byUser.get(e.user_id)?.today.push({ id: e.id, text: e.text, category: e.category, created_at: e.created_at });
     }
+    for (const k of (kudos.data ?? []) as { from_user: string; to_user: string; emoji: KudoEmoji }[]) {
+      byUser.get(k.to_user)?.kudos.push({ from: k.from_user, emoji: k.emoji });
+    }
     return [...byUser.values()];
   }, []);
+
+  const loadReceived = useCallback(async (): Promise<ReceivedKudo[]> => {
+    if (!userId) return [];
+    const { data, error } = await supabase
+      .from('kudos')
+      .select('from_user, emoji, created_at, sender:profiles!kudos_from_user_fkey(display_name, emoji)')
+      .eq('to_user', userId)
+      .eq('done_on', ymd(new Date()))
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return ((data ?? []) as unknown as { from_user: string; emoji: KudoEmoji; sender: { display_name: string; emoji: string } | null }[]).map(
+      (r) => ({ from: r.from_user, emoji: r.emoji, name: r.sender?.display_name || 'Someone', avatar: r.sender?.emoji ?? '🌱' }),
+    );
+  }, [userId]);
 
   const refresh = useCallback(async () => {
     if (!userId) return;
@@ -140,14 +175,16 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
       fetched.current = true;
       setSquads(list);
       const current = list.find((s) => s.id === selectedId) ?? list[0] ?? null;
-      setMembers(current ? await loadMembers(current.id) : []);
+      const [mem, rec] = await Promise.all([current ? loadMembers(current.id) : Promise.resolve([]), loadReceived()]);
+      setMembers(mem);
+      setReceived(rec);
       setError(null);
     } catch {
       setError('Couldn’t reach the server. Showing what’s saved on this phone.');
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedId, loadMembers]);
+  }, [userId, selectedId, loadMembers, loadReceived]);
 
   useEffect(() => {
     // refresh() only sets state after awaiting the network.
@@ -188,9 +225,41 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
     [refresh],
   );
 
+  const toggleKudo = useCallback(
+    async (toUser: string, emoji: KudoEmoji) => {
+      if (!userId || toUser === userId) return;
+      const day = ymd(new Date());
+      const target = members.find((m) => m.id === toUser);
+      const had = !!target?.kudos.some((k) => k.from === userId && k.emoji === emoji);
+      const apply = (add: boolean) =>
+        setMembers((ms) =>
+          ms.map((m) =>
+            m.id !== toUser
+              ? m
+              : {
+                  ...m,
+                  kudos: add
+                    ? [...m.kudos, { from: userId, emoji }]
+                    : m.kudos.filter((k) => !(k.from === userId && k.emoji === emoji)),
+                },
+          ),
+        );
+      apply(!had); // optimistic
+      const { error } = had
+        ? await supabase.from('kudos').delete().match({ from_user: userId, to_user: toUser, done_on: day, emoji })
+        : await supabase.from('kudos').insert({ to_user: toUser, done_on: day, emoji });
+      // 23505 = already sent (e.g. from another device): the state we wanted is true anyway
+      if (error && error.code !== '23505') {
+        apply(had);
+        throw error;
+      }
+    },
+    [userId, members],
+  );
+
   const value = useMemo(
-    () => ({ squads, selected, select, members, loading, error, refresh, create, join, leave }),
-    [squads, selected, select, members, loading, error, refresh, create, join, leave],
+    () => ({ squads, selected, select, members, loading, error, refresh, create, join, leave, toggleKudo, received }),
+    [squads, selected, select, members, loading, error, refresh, create, join, leave, toggleKudo, received],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
