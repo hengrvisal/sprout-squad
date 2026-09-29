@@ -10,6 +10,7 @@ const HOW = [
   ['🌱', 'Log something', 'Your first win each day counts most. A few more help a little. Quality over quantity.'],
   ['👥', 'Show up together', 'The more of the squad who log on the same day, the faster it grows. Everyone on one day is a full squad day.'],
   ['🔥', 'Cheer each other on', 'Kudos from squadmates add a little growth too.'],
+  ['🌿', 'Grow together', 'Log wins during a focus session with at least one squadmate for a daily bonus.'],
   ['🎯', 'Hit the weekly goal', 'A shared goal every Monday. Hit it for a 20% growth spurt.'],
   ['💧', 'It never dies', 'If nobody logs for a few days it gets thirsty. One log perks it back up.'],
 ] as const;

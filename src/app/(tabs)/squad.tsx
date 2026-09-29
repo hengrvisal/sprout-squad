@@ -6,9 +6,11 @@ import { Plant } from '@/components/squad/Plant';
 import { StartOrJoin } from '@/components/squad/StartOrJoin';
 import { Body, Card, Dot, Eyebrow, H, Mono, ProgressBar, TapCard } from '@/components/ui';
 import { useAuth } from '@/hooks/auth';
+import { useSessions } from '@/hooks/sessions';
 import { useSquads } from '@/hooks/squads';
 import { shareInvite } from '@/lib/invite';
 import { healthLabel, stageFor } from '@/lib/plant';
+import { leftLabel, namesLabel, secondsLeft } from '@/lib/sessions';
 import { fonts, radius, useColors } from '@/theme/tokens';
 
 /**
@@ -21,6 +23,8 @@ export default function SquadTab() {
   const { session } = useAuth();
   const me = session?.user.id;
   const { squads, selected, members, loading, error, refresh, plant } = useSquads();
+  const { live, joined } = useSessions();
+  const inSession = live ? live.members.filter((x) => !x.left_at).map((x) => (x.user_id === me ? 'You' : x.name)) : [];
   const [pulling, setPulling] = useState(false);
 
   useFocusEffect(
@@ -127,7 +131,29 @@ export default function SquadTab() {
         )}
       </TapCard>
 
-      {/* 2. friends today */}
+      {/* 2. grow together: live banner, or a way to start one */}
+      {live ? (
+        <TapCard label="Open the grow-together session" onPress={() => router.push('/session')} bg={c.grid[3]} style={{ gap: 4 }}>
+          <Text style={{ fontFamily: fonts.displayBold, fontSize: 17, color: c.onGreen, paddingRight: 18 }}>
+            🌿 {namesLabel(inSession)} {inSession.length === 1 && inSession[0] !== 'You' ? 'is' : 'are'} growing together
+          </Text>
+          <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: c.onGreen }}>
+            {leftLabel(secondsLeft(live.session))} · {joined ? 'You’re in' : 'Tap to join'}
+          </Text>
+        </TapCard>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/session')}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, opacity: pressed ? 0.6 : 1 })}
+        >
+          <Text style={{ fontSize: 18 }}>🌿</Text>
+          <Text style={{ flex: 1, fontFamily: fonts.bodySemi, fontSize: 14.5, color: c.ink2 }}>Grow together: start a focus session</Text>
+          <Text style={{ fontFamily: fonts.mono, fontSize: 18, color: c.ink3 }}>›</Text>
+        </Pressable>
+      )}
+
+      {/* 3. friends today */}
       <Card style={{ gap: 10, paddingHorizontal: 0 }}>
         <Eyebrow style={{ paddingHorizontal: 16 }}>Friends today</Eyebrow>
         {others.length === 0 ? (

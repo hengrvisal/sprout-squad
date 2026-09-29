@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/hooks/auth';
 import { EntriesProvider } from '@/hooks/entries';
 import { NotificationsProvider } from '@/hooks/notifications';
+import { SessionsProvider } from '@/hooks/sessions';
 import { ProfileProvider, useProfile } from '@/hooks/profile';
 import { SquadsProvider } from '@/hooks/squads';
 import { useColors } from '@/theme/tokens';
@@ -38,6 +39,7 @@ function RootStack() {
         <Stack.Screen name="week" />
         <Stack.Screen name="search" />
         <Stack.Screen name="notifications" />
+        <Stack.Screen name="session" />
         <Stack.Screen name="month" />
         <Stack.Screen name="plant" />
         <Stack.Screen name="friend/[id]" />
@@ -73,10 +75,12 @@ export default function RootLayout() {
         <ProfileProvider>
           <EntriesProvider>
             <SquadsProvider>
-              <NotificationsProvider>
-                <StatusBar style="auto" />
-                <RootStack />
-              </NotificationsProvider>
+              <SessionsProvider>
+                <NotificationsProvider>
+                  <StatusBar style="auto" />
+                  <RootStack />
+                </NotificationsProvider>
+              </SessionsProvider>
             </SquadsProvider>
           </EntriesProvider>
         </ProfileProvider>
