@@ -1,28 +1,28 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Share, Text, View } from 'react-native';
-import { MonthGrid } from '@/components/MonthGrid';
-import { Screen } from '@/components/Screen';
-import { MemberCard } from '@/components/squad/MemberCard';
-import { PlantCard } from '@/components/squad/PlantCard';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Avatar, Screen } from '@/components/Screen';
+import { Plant } from '@/components/squad/Plant';
 import { StartOrJoin } from '@/components/squad/StartOrJoin';
-import { Body, Button, Card, Chip, Eyebrow, H, Mono } from '@/components/ui';
+import { Body, Card, Dot, Eyebrow, H, Mono, ProgressBar, TapCard } from '@/components/ui';
 import { useAuth } from '@/hooks/auth';
-import { squadErrorMessage, useSquads } from '@/hooks/squads';
-import { MONTHS, monthAt, ymd } from '@/lib/dates';
+import { useSquads } from '@/hooks/squads';
+import { shareInvite } from '@/lib/invite';
+import { healthLabel, stageFor } from '@/lib/plant';
 import { fonts, radius, useColors } from '@/theme/tokens';
 
+/**
+ * Squad: the plant you grow together, and who's shown up today.
+ * Tap the plant for its details and the weekly goal; tap a friend for their grid and kudos;
+ * tap the squad name to invite, switch, join or leave.
+ */
 export default function SquadTab() {
   const c = useColors();
   const { session } = useAuth();
   const me = session?.user.id;
-  const { squads, selected, select, members, loading, error, refresh, leave, toggleKudo, plant } = useSquads();
-  const [adding, setAdding] = useState(false);
+  const { squads, selected, members, loading, error, refresh, plant } = useSquads();
   const [pulling, setPulling] = useState(false);
-  const [confirmLeave, setConfirmLeave] = useState(false);
-  const [leaveError, setLeaveError] = useState<string | null>(null);
 
-  // Pick up your own new entries (and friends') whenever the tab is opened.
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -35,15 +35,13 @@ export default function SquadTab() {
     setPulling(false);
   }
 
-  // ---------- no squads yet ----------
-  if (!squads.length) {
+  if (!squads.length || !selected) {
     return (
-      <Screen refreshing={pulling} onRefresh={onPull}>
+      <Screen title="Squad" refreshing={pulling} onRefresh={onPull}>
         <Card bg={c.lilac}>
-          <Eyebrow style={{ color: c.tangInk }}>Your squad</Eyebrow>
-          <H style={{ color: c.tangInk }}>Grow with friends</H>
+          <H style={{ color: c.tangInk }}>Grow a plant with friends</H>
           <Body style={{ color: c.tangInk }}>
-            Squadmates see each other’s grids and what they got done today. No rankings, no leaderboard.
+            Every day your squad logs something, your shared plant grows. You’ll see each other’s grids and send kudos. No rankings.
           </Body>
         </Card>
         {loading ? <Body style={{ color: c.ink3, textAlign: 'center' }}>Loading…</Body> : <StartOrJoin />}
@@ -52,141 +50,134 @@ export default function SquadTab() {
     );
   }
 
-  // ---------- squad view ----------
-  const others = members.filter((m) => m.id !== me);
-  const mine = members.find((m) => m.id === me);
-  const { y, m } = monthAt(0);
-  const todayKey = ymd(new Date());
-  const activeToday = members.filter((x) => x.today.length > 0 || (x.counts[todayKey] ?? 0) > 0).length;
-  const combined = (d: string) => (members.length ? Math.ceil(members.reduce((a, x) => a + (x.counts[d] ?? 0), 0) / members.length) : 0);
-  const combinedCounts: Record<string, number> = {};
-  for (const x of members) for (const d of Object.keys(x.counts)) combinedCounts[d] = combined(d);
-
-  async function invite() {
-    if (!selected) return;
-    await Share.share({
-      message: `Join my squad "${selected.name}" on Sprout Squad. Code: ${selected.invite_code}`,
-    }).catch(() => {});
-  }
-
-  async function onLeave() {
-    if (!selected) return;
-    setLeaveError(null);
-    try {
-      await leave(selected.id);
-      setConfirmLeave(false);
-    } catch (e) {
-      setLeaveError(squadErrorMessage(e));
-    }
-  }
+  const others = members.filter((x) => x.id !== me);
+  const stage = plant ? stageFor(plant.growth) : null;
+  const health = plant ? healthLabel(plant.health, plant.drooping) : null;
+  const toneColor = health?.tone === 'good' ? c.grid[3] : health?.tone === 'ok' ? c.sky : c.tang;
 
   return (
-    <Screen refreshing={pulling} onRefresh={onPull}>
-      {/* squad switcher */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingRight: 4 }}>
-        {squads.map((s) => (
-          <Chip
-            key={s.id}
-            label={s.name}
-            selected={!adding && s.id === selected?.id}
-            onPress={() => {
-              setAdding(false);
-              setConfirmLeave(false);
-              if (s.id !== selected?.id) select(s.id);
-            }}
-          />
-        ))}
-        <Chip label="+ Join or start" selected={adding} onPress={() => setAdding((a) => !a)} />
-      </ScrollView>
+    <Screen
+      subtitle={squads.length > 1 ? `Squad · ${squads.length} squads` : 'Squad'}
+      titleNode={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${selected.name}. Manage squads`}
+          onPress={() => router.push('/squad-manage')}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+        >
+          <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: fonts.display, fontSize: 32, color: c.ink, letterSpacing: -0.8 }}>
+            {selected.name}
+          </Text>
+          <Text style={{ fontFamily: fonts.mono, fontSize: 18, color: c.ink3, marginTop: 6 }}>▾</Text>
+        </Pressable>
+      }
+      right={
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => shareInvite(selected)}
+          style={{ borderWidth: 2, borderColor: c.line, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: c.card, marginBottom: 4 }}
+        >
+          <Text style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: c.ink }}>Invite</Text>
+        </Pressable>
+      }
+      refreshing={pulling}
+      onRefresh={onPull}
+    >
+      {error && <Body style={{ color: c.tang, fontSize: 13 }}>{error}</Body>}
 
-      {error && <Body style={{ color: c.tang }}>{error}</Body>}
-
-      {adding ? (
-        <StartOrJoin onDone={() => setAdding(false)} />
-      ) : (
-        selected && (
-          <>
-            {/* header + invite */}
-            <Card style={{ gap: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <H size={22}>{selected.name}</H>
-                  <Body style={{ fontSize: 13, color: c.ink2 }}>
-                    <Mono style={{ fontSize: 13 }}>{members.length || '–'}</Mono>/10 members ·{' '}
-                    <Mono style={{ fontSize: 13 }}>{activeToday}</Mono> active today
-                  </Body>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View
-                  style={{
-                    flex: 1,
-                    backgroundColor: c.screen,
-                    borderWidth: 2,
-                    borderColor: c.soft,
-                    borderRadius: radius.md,
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                  }}
-                >
-                  <Eyebrow style={{ fontSize: 10 }}>Invite code</Eyebrow>
-                  <Text selectable style={{ fontFamily: fonts.mono, fontSize: 22, letterSpacing: 4, color: c.ink }}>
-                    {selected.invite_code}
-                  </Text>
-                </View>
-                <Button label="Invite" onPress={invite} />
-              </View>
-            </Card>
-
-            {plant && <PlantCard plant={plant} squadId={selected.id} members={members} me={me} />}
-
-            {/* combined grid: compact so friends show up without much scrolling */}
-            <Card style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
-              <View style={{ width: 150 }}>
-                <MonthGrid y={y} m={m} counts={combinedCounts} mini gap={3} />
-              </View>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Eyebrow>Squad grid · {MONTHS[m]}</Eyebrow>
-                <H size={17}>Everyone, combined</H>
-                <Body style={{ fontSize: 12.5, lineHeight: 17, color: c.ink3 }}>Each square is the squad’s average for that day.</Body>
-              </View>
-            </Card>
-
-            {/* members */}
-            {others.length === 0 && members.length > 0 && (
-              <Card bg={c.lilac}>
-                <H style={{ color: c.tangInk }}>It’s just you so far</H>
-                <Body style={{ color: c.tangInk }}>Tap Invite and send the code to a few friends.</Body>
-              </Card>
+      {/* 1. the plant */}
+      <TapCard label="Open squad plant" onPress={() => router.push('/plant')} style={{ gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ width: 132, alignItems: 'center' }}>
+            {plant && stage ? (
+              <Plant stage={stage.index} progress={stage.progress} health={plant.health} drooping={plant.drooping} members={plant.members} seedKey={selected.id} size={132} />
+            ) : (
+              <View style={{ height: 145 }} />
             )}
-            {others.map((x) => (
-              <MemberCard key={x.id} member={x} myId={me} onKudo={(e) => toggleKudo(x.id, e).catch(() => {})} />
-            ))}
-            {mine && <MemberCard member={mine} isMe />}
-
-            {/* leave */}
-            <View style={{ gap: 8, paddingTop: 4 }}>
-              {confirmLeave ? (
-                <Card>
-                  <Body>
-                    Leave <Text style={{ fontFamily: fonts.bodyBold }}>{selected.name}</Text>? You’ll need the code to rejoin.
-                    {others.length === 0 ? ' You’re the last member, so the squad will be deleted.' : ''}
-                  </Body>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <Button label="Leave squad" onPress={onLeave} />
-                    <Button label="Cancel" variant="ghost" onPress={() => setConfirmLeave(false)} />
-                  </View>
-                  {leaveError && <Body style={{ color: c.tang, fontSize: 14 }}>{leaveError}</Body>}
-                </Card>
-              ) : (
-                <Pressable accessibilityRole="button" onPress={() => setConfirmLeave(true)} style={{ alignSelf: 'center', padding: 8 }}>
-                  <Text style={{ fontFamily: fonts.bodySemi, fontSize: 14, color: c.ink3 }}>Leave this squad</Text>
-                </Pressable>
-              )}
+          </View>
+          <View style={{ flex: 1, gap: 6, paddingRight: 10 }}>
+            <Eyebrow>Squad plant</Eyebrow>
+            <H size={24}>{stage?.name ?? '…'}</H>
+            {health && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Dot color={toneColor} />
+                <Text style={{ fontFamily: fonts.bodySemi, fontSize: 12.5, color: c.ink2, flexShrink: 1 }}>{health.label}</Text>
+              </View>
+            )}
+            {plant && (
+              <Text style={{ fontFamily: fonts.body, fontSize: 13, color: c.ink2 }}>
+                <Mono style={{ fontSize: 13 }}>{plant.today.active}/{plant.today.members}</Mono> showed up today
+              </Text>
+            )}
+            {stage && <ProgressBar value={stage.progress} color={c.grid[3]} height={9} />}
+          </View>
+        </View>
+        {plant?.week?.label && (
+          <View style={{ gap: 6, borderTopWidth: 1.5, borderTopColor: c.soft, paddingTop: 10 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+              <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.bodySemi, fontSize: 13, color: c.ink }}>
+                {plant.week.met ? '✅ ' : ''}This week: {plant.week.label}
+              </Text>
+              <Mono style={{ fontSize: 12.5, color: c.ink3 }}>
+                {plant.week.progress}/{plant.week.target}
+              </Mono>
             </View>
-          </>
-        )
-      )}
+            <ProgressBar value={plant.week.progress / Math.max(1, plant.week.target)} color={plant.week.met ? c.grid[4] : c.lilac} height={8} />
+          </View>
+        )}
+      </TapCard>
+
+      {/* 2. friends today */}
+      <Card style={{ gap: 10, paddingHorizontal: 0 }}>
+        <Eyebrow style={{ paddingHorizontal: 16 }}>Friends today</Eyebrow>
+        {others.length === 0 ? (
+          <Pressable onPress={() => shareInvite(selected)} style={{ paddingHorizontal: 16 }}>
+            <Body style={{ color: c.ink2 }}>
+              It’s just you so far. <Text style={{ fontFamily: fonts.bodyBold, color: c.ink }}>Invite a friend ›</Text>
+            </Body>
+          </Pressable>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingHorizontal: 16 }}>
+            {others.map((f) => {
+              const n = f.today.length;
+              return (
+                <Pressable
+                  key={f.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${f.display_name || 'Someone'}, ${n} today. Open`}
+                  onPress={() => router.push({ pathname: '/friend/[id]', params: { id: f.id } })}
+                  style={({ pressed }) => ({ alignItems: 'center', gap: 6, width: 64, opacity: pressed ? 0.6 : 1 })}
+                >
+                  <View>
+                    <Avatar emoji={f.emoji} size={52} />
+                    <View
+                      style={{
+                        position: 'absolute',
+                        right: -4,
+                        bottom: -2,
+                        minWidth: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        borderWidth: 2,
+                        borderColor: c.line,
+                        backgroundColor: n > 0 ? c.grid[3] : c.soft,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingHorizontal: 4,
+                      }}
+                    >
+                      <Mono style={{ fontSize: 11, color: n > 0 ? c.onGreen : c.ink3 }}>{n}</Mono>
+                    </View>
+                  </View>
+                  <Text numberOfLines={1} style={{ fontFamily: fonts.bodySemi, fontSize: 12.5, color: c.ink }}>
+                    {f.display_name || 'Someone'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+      </Card>
     </Screen>
   );
 }

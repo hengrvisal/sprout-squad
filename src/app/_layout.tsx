@@ -31,6 +31,14 @@ function RootStack() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.ground } }}>
       <Stack.Protected guard={signedIn && !needsIntro}>
         <Stack.Screen name="(tabs)" />
+        {/* detail screens, one tap from the tabs */}
+        <Stack.Screen name="day" />
+        <Stack.Screen name="month" />
+        <Stack.Screen name="plant" />
+        <Stack.Screen name="friend/[id]" />
+        <Stack.Screen name="squad-manage" />
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="account" />
       </Stack.Protected>
       <Stack.Protected guard={needsIntro}>
         <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />

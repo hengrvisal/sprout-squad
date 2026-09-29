@@ -1,43 +1,80 @@
+import { router } from 'expo-router';
 import { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useProfile } from '@/hooks/profile';
-import { fonts, radius, useColors } from '@/theme/tokens';
-import { Chunky } from './ui';
+import { fonts, useColors } from '@/theme/tokens';
 
-/** Scrollable tab screen with the Sprout Squad header. */
+/**
+ * A tab screen: big title, optional subtitle and right-hand action, then content.
+ * Designed so the main content fits one phone screen; details live one tap away.
+ */
 export function Screen({
+  title,
+  subtitle,
+  right,
+  titleNode,
   children,
   refreshing,
   onRefresh,
 }: {
+  title?: string;
+  subtitle?: string;
+  right?: ReactNode;
+  /** Replaces the title text (e.g. a squad switcher). */
+  titleNode?: ReactNode;
   children: ReactNode;
-  /** Pass both to enable pull-to-refresh. */
   refreshing?: boolean;
   onRefresh?: () => void;
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const { profile } = useProfile();
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.screen }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={c.ink} /> : undefined}
-        contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 16, paddingBottom: insets.bottom + 110, gap: 16 }}
+        contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 18, paddingBottom: insets.bottom + 110, gap: 18 }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View
-              style={{ width: 22, height: 22, borderRadius: 7, backgroundColor: c.grid[3], borderWidth: 2.5, borderColor: c.line, transform: [{ rotate: '8deg' }] }}
-            />
-            <Text style={{ fontFamily: fonts.display, fontSize: 24, color: c.ink, letterSpacing: -0.5 }}>Sprout Squad</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, minHeight: 56 }}>
+          <View style={{ flex: 1 }}>
+            {subtitle ? (
+              <Text style={{ fontFamily: fonts.bodyBold, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: c.ink3 }}>{subtitle}</Text>
+            ) : null}
+            {titleNode ?? <Text style={{ fontFamily: fonts.display, fontSize: 32, color: c.ink, letterSpacing: -0.8 }}>{title}</Text>}
           </View>
-          <Chunky r={radius.pill} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 3, paddingRight: 12 }}>
-            <Avatar emoji={profile?.emoji} size={28} />
-            <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: c.ink }}>{profile?.display_name || 'You'}</Text>
-          </Chunky>
+          {right}
         </View>
+        {children}
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+/** A pushed detail screen: back button + title, scrollable content. */
+export function DetailScreen({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
+  const c = useColors();
+  const insets = useSafeAreaInsets();
+  return (
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.screen }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 12, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={12}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Text style={{ fontFamily: fonts.mono, fontSize: 26, color: c.ink }}>‹</Text>
+        </Pressable>
+        <Text style={{ flex: 1, fontFamily: fonts.displayBold, fontSize: 20, color: c.ink }} numberOfLines={1}>
+          {title}
+        </Text>
+        {right}
+      </View>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 6, paddingBottom: insets.bottom + 40, gap: 16 }}
+      >
         {children}
       </ScrollView>
     </KeyboardAvoidingView>

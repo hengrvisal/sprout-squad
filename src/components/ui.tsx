@@ -191,3 +191,70 @@ export function Field({ style, ...rest }: TextInputProps) {
     />
   );
 }
+
+/** A card you can tap to open more detail. Shows a › in the corner and presses in like a button. */
+export function TapCard({
+  children,
+  onPress,
+  bg,
+  style,
+  label,
+}: {
+  children: ReactNode;
+  onPress: () => void;
+  bg?: string;
+  style?: StyleProp<ViewStyle>;
+  /** Screen-reader label for what opening it does, e.g. "Open today's list". */
+  label: string;
+}) {
+  const c = useColors();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}>
+      {({ pressed }) => (
+        <View style={{ transform: pressed ? [{ translateX: 2 }, { translateY: 2 }] : [] }}>
+          <Chunky bg={bg} style={[{ padding: 16, gap: 12 }, style]} offset={pressed ? 1 : shadowOffset}>
+            {children}
+          </Chunky>
+          <Text style={{ position: 'absolute', top: 10, right: 16, fontFamily: fonts.mono, fontSize: 20, color: c.ink3 }}>›</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+/** A plain list row (settings style): label, optional value, chevron. */
+export function Row({ label, value, onPress, danger }: { label: string; value?: string; onPress: () => void; danger?: boolean }) {
+  const c = useColors();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 14,
+        paddingHorizontal: 4,
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Text style={{ flex: 1, fontFamily: fonts.bodySemi, fontSize: 16, color: danger ? c.tang : c.ink }}>{label}</Text>
+      {value ? <Text style={{ fontFamily: fonts.body, fontSize: 15, color: c.ink3 }}>{value}</Text> : null}
+      <Text style={{ fontFamily: fonts.mono, fontSize: 18, color: c.ink3 }}>›</Text>
+    </Pressable>
+  );
+}
+
+export function Divider() {
+  const c = useColors();
+  return <View style={{ height: 1.5, backgroundColor: c.soft }} />;
+}
+
+export function ProgressBar({ value, color, height = 10 }: { value: number; color: string; height?: number }) {
+  const c = useColors();
+  return (
+    <View style={{ height, borderRadius: height / 2, borderWidth: 2, borderColor: c.line, backgroundColor: c.soft, overflow: 'hidden' }}>
+      <View style={{ width: `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`, height: '100%', backgroundColor: color }} />
+    </View>
+  );
+}

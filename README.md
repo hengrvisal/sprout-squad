@@ -48,14 +48,18 @@ Expo (SDK 57) · Expo Router · TypeScript · Supabase
 src/
   app/                 routes (Expo Router)
     _layout.tsx        fonts, providers, auth guard
-    sign-in.tsx        email → 6-digit code
-    (tabs)/            Today · Squad · Me, custom pill tab bar
-  components/          MonthGrid, Screen, ui primitives (Chunky hard-shadow cards, Button, Chip)
-  hooks/               auth, entries (counts + today, optimistic writes), profile, squads
-  components/squad/    StartOrJoin, MemberCard
-  lib/                 supabase client, dates (pure, tested), categories
-  theme/tokens.ts      colours (light/dark), fonts, radii from the web prototype
-supabase/migrations/   schema + RLS
+    sign-in.tsx        email → one-time code
+    onboarding.tsx     intro slides
+    (tabs)/            Today · Squad · Me: one screen each, no scrolling needed
+    day.tsx, month.tsx                      Today details
+    plant.tsx, friend/[id].tsx, squad-manage.tsx   Squad details
+    profile.tsx, account.tsx                Me details
+  components/          Screen/DetailScreen, MonthGrid, ui primitives (Chunky, TapCard, Row…), squad/, me/
+  hooks/               auth, entries, profile, squads (incl. plant + kudos)
+  lib/                 supabase client, dates, plant, kudos, categories, format (pure + tested)
+  theme/tokens.ts      colours (light/dark), fonts, radii
+supabase/migrations/   schema + RLS + RPCs
+website/               sproutsquad.app (static, Cloudflare)
 ```
 
 ## Data model

@@ -1,45 +1,47 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { MonthGrid, MonthHeader, MonthSummary } from '@/components/MonthGrid';
+import { MonthGrid } from '@/components/MonthGrid';
 import { Screen } from '@/components/Screen';
-import { Body, Button, Card, Chip, Chunky, Dot, Eyebrow, H, Mono } from '@/components/ui';
+import { Body, Button, Card, Chip, Dot, Eyebrow, Mono, TapCard } from '@/components/ui';
 import { useEntries } from '@/hooks/entries';
 import { useSquads } from '@/hooks/squads';
-import { CATEGORIES, CategoryKey, categoryColor } from '@/lib/categories';
-import { monthAt, streak, weekTotal } from '@/lib/dates';
+import { CATEGORIES, CategoryKey } from '@/lib/categories';
+import { MONTHS, monthAt, streak } from '@/lib/dates';
+import { dayLabels } from '@/lib/format';
 import { tally } from '@/lib/kudos';
 import { border, fonts, radius, useColors } from '@/theme/tokens';
 
-function ago(iso: string) {
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'now';
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  return `${Math.floor(s / 3600)}h`;
-}
-
+/**
+ * Today: log a win, see today at a glance, see the month. Everything else is one tap away:
+ * the full list (/day) and month history (/month).
+ */
 export default function Today() {
   const c = useColors();
-  const { counts, today, add, remove, ensureMonth, error } = useEntries();
+  const { counts, today, add, error } = useEntries();
+  const { received, refresh: refreshSquads } = useSquads();
   const [text, setText] = useState('');
   const [cat, setCat] = useState<CategoryKey>('study');
-  const [offset, setOffset] = useState(0);
+  const [picking, setPicking] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const { y, m } = monthAt(offset);
-  const { received, refresh: refreshSquads } = useSquads();
+  const { weekday, date } = dayLabels();
+  const { y, m } = monthAt(0);
+  const st = streak(counts);
+  const current = CATEGORIES.find((k) => k.key === cat) ?? CATEGORIES[0];
+
   // pick up kudos friends sent while you were away
   useFocusEffect(
     useCallback(() => {
       refreshSquads();
     }, [refreshSquads]),
   );
-  const senders = [...new Set(received.map((k) => k.name))];
 
   async function onLog() {
     const t = text.trim().slice(0, 90);
     if (!t) return;
     setText('');
     setSaveError(null);
+    setPicking(false);
     try {
       await add(t, cat);
     } catch {
@@ -48,35 +50,13 @@ export default function Today() {
     }
   }
 
-  function onMonth(o: number) {
-    setOffset(o);
-    const mm = monthAt(o);
-    ensureMonth(mm.y, mm.m);
-  }
-
   return (
-    <Screen>
-      {error && <Body style={{ color: c.tang }}>{error}</Body>}
+    <Screen subtitle={date} title={weekday}>
+      {error && <Body style={{ color: c.tang, fontSize: 13 }}>{error}</Body>}
 
-      <Chunky bg={c.tang} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, gap: 12 }}>
-        <Text style={{ fontFamily: fonts.display, fontSize: 40, lineHeight: 42, color: c.tangInk, letterSpacing: -1.5 }}>
-          {today.length}
-        </Text>
-        <Text style={{ flex: 1, fontFamily: fonts.bodyBold, fontSize: 14, lineHeight: 17, color: c.tangInk }}>
-          {today.length === 1 ? 'thing done' : 'things done'}
-          {'\n'}today
-        </Text>
-        <Stat label="Streak" value={`${streak(counts)}d`} />
-        <Stat label="Week" value={String(weekTotal(counts))} />
-      </Chunky>
-
-      <Card>
-        <MonthHeader y={y} m={m} offset={offset} onChange={onMonth} />
-        <MonthGrid y={y} m={m} counts={counts} />
-        <MonthSummary counts={counts} y={y} m={m} />
-      </Card>
-      <Card>
-        <H>What did you get done?</H>
+      {/* 1. log a win */}
+      <Card style={{ gap: 10 }}>
+        <Text style={{ fontFamily: fonts.displayBold, fontSize: 18, color: c.ink }}>What did you get done?</Text>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           <TextInput
             value={text}
@@ -103,82 +83,59 @@ export default function Today() {
           />
           <Button label="Log" onPress={onLog} disabled={!text.trim()} />
         </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {CATEGORIES.map((k) => (
-            <Chip key={k.key} label={k.label} dot={k.color} selected={cat === k.key} onPress={() => setCat(k.key)} />
-          ))}
-        </View>
-        {saveError && <Body style={{ color: c.tang, fontSize: 14 }}>{saveError}</Body>}
-      </Card>
-
-      <Card>
-        <H>Logged today</H>
-        {received.length > 0 && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-            {tally(received).map(([e, n]) => (
-              <View
-                key={e}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 2, borderColor: c.line, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: c.lilac }}
-              >
-                <Text style={{ fontSize: 14 }}>{e}</Text>
-                <Mono style={{ fontSize: 12, color: c.tangInk }}>{n}</Mono>
-              </View>
+        {picking ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {CATEGORIES.map((k) => (
+              <Chip key={k.key} label={k.label} dot={k.color} selected={cat === k.key} onPress={() => { setCat(k.key); setPicking(false); }} />
             ))}
-            <Body style={{ fontSize: 13, color: c.ink2, flexShrink: 1 }}>
-              from {senders.slice(0, 2).join(', ')}
-              {senders.length > 2 ? ` and ${senders.length - 2} more` : ''}
-            </Body>
           </View>
-        )}
-        {today.length === 0 ? (
-          <Body style={{ color: c.ink3, textAlign: 'center', paddingVertical: 8 }}>
-            Nothing yet. Log one small win to light up today’s square.
-          </Body>
         ) : (
-          <View style={{ gap: 8 }}>
-            {today.map((e) => (
-              <View
-                key={e.id}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 10,
-                  backgroundColor: c.screen,
-                  borderWidth: 2,
-                  borderColor: c.soft,
-                  borderRadius: radius.md,
-                  paddingVertical: 9,
-                  paddingHorizontal: 10,
-                }}
-              >
-                <Dot color={categoryColor(e.category)} />
-                <Body style={{ flex: 1, fontFamily: fonts.bodyMedium }}>{e.text}</Body>
-                <Mono style={{ fontSize: 12, color: c.ink3 }}>{ago(e.created_at)}</Mono>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${e.text}`}
-                  hitSlop={8}
-                  disabled={e.id.startsWith('temp-')}
-                  onPress={() => remove(e.id).catch(() => setSaveError('Couldn’t remove that. Try again.'))}
-                >
-                  <Text style={{ fontSize: 18, color: c.ink3, paddingHorizontal: 4 }}>×</Text>
-                </Pressable>
-              </View>
-            ))}
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Category: ${current.label}. Tap to change`}
+            onPress={() => setPicking(true)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}
+          >
+            <Dot color={current.color} />
+            <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: c.ink2 }}>{current.label}</Text>
+            <Text style={{ fontFamily: fonts.body, fontSize: 13, color: c.ink3 }}>· change</Text>
+          </Pressable>
         )}
+        {saveError && <Body style={{ color: c.tang, fontSize: 13 }}>{saveError}</Body>}
       </Card>
 
-    </Screen>
-  );
-}
+      {/* 2. today at a glance */}
+      <TapCard label="Open today’s list" onPress={() => router.push('/day')} style={{ gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Text style={{ fontFamily: fonts.display, fontSize: 44, lineHeight: 46, color: c.ink, letterSpacing: -1.5 }}>{today.length}</Text>
+          <View style={{ flex: 1, paddingRight: 18 }}>
+            <Text style={{ fontFamily: fonts.bodyBold, fontSize: 15, color: c.ink }}>{today.length === 1 ? 'thing done today' : 'things done today'}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 13.5, color: c.ink3 }}>
+              {today[0] ? `Latest: ${today[0].text}` : 'Log one small win to light up today'}
+            </Text>
+          </View>
+        </View>
+        {received.length > 0 && (
+          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+            {tally(received).map(([e, n]) => (
+              <Text key={e} style={{ fontSize: 14 }}>
+                {e}
+                <Mono style={{ fontSize: 12, color: c.ink2 }}> {n}</Mono>
+              </Text>
+            ))}
+            <Text style={{ fontFamily: fonts.body, fontSize: 12.5, color: c.ink3 }}>kudos today</Text>
+          </View>
+        )}
+      </TapCard>
 
-function Stat({ label, value }: { label: string; value: string }) {
-  const c = useColors();
-  return (
-    <View style={{ alignItems: 'flex-end' }}>
-      <Eyebrow style={{ color: c.tangInk, opacity: 0.7, fontSize: 10 }}>{label}</Eyebrow>
-      <Mono style={{ fontSize: 20, color: c.tangInk }}>{value}</Mono>
-    </View>
+      {/* 3. the month */}
+      <TapCard label="Open month history" onPress={() => router.push('/month')} style={{ gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, paddingRight: 18 }}>
+          <Text style={{ fontFamily: fonts.displayBold, fontSize: 18, color: c.ink }}>{MONTHS[m]}</Text>
+          <Eyebrow>{st > 0 ? `🔥 ${st}-day streak` : 'Start a streak today'}</Eyebrow>
+        </View>
+        <MonthGrid y={y} m={m} counts={counts} mini gap={5} />
+      </TapCard>
+    </Screen>
   );
 }
