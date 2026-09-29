@@ -36,6 +36,13 @@
       <!-- ============ hero ============ -->
       <div class="hero">
         <div class="stage" data-parallax-root>
+          <!-- vines growing in from both screen edges, like hands reaching for the phone -->
+          <div class="vines bleed" aria-hidden="true">
+            <svg class="vine vine-l" viewBox="0 0 800 700" preserveAspectRatio="xMinYMid meet"
+              data-vine='["M -30 560 C 140 560, 230 430, 360 410 S 560 330, 650 260", "M -30 170 C 110 190, 200 110, 320 130 S 470 220, 545 190", "M -30 380 C 60 370, 120 320, 190 330"]'></svg>
+            <svg class="vine vine-r" viewBox="0 0 800 700" preserveAspectRatio="xMinYMid meet"
+              data-vine='["M -30 300 C 150 320, 250 250, 380 290 S 560 410, 650 370", "M -30 620 C 140 610, 240 520, 360 545 S 500 620, 585 585", "M -30 110 C 70 120, 140 70, 220 90"]'></svg>
+          </div>
           <!-- floating pieces -->
           <div class="float f1" data-depth="0.6">
             <div class="bob">
@@ -108,6 +115,10 @@
 
       <!-- ============ how it works ============ -->
       <section id="how" class="center">
+        <div class="section-vines bleed" aria-hidden="true">
+          <svg class="vine vine-l small" viewBox="0 0 800 400" preserveAspectRatio="xMinYMid meet" data-vine='["M -30 300 C 160 300, 280 180, 420 200 S 600 120, 700 90"]' data-on-visible></svg>
+          <svg class="vine vine-r small" viewBox="0 0 800 400" preserveAspectRatio="xMinYMid meet" data-vine='["M -30 120 C 160 130, 280 240, 420 220 S 600 280, 700 300"]' data-on-visible></svg>
+        </div>
         <div class="section-mark" data-reveal><img src="/mark.png" alt=""></div>
         <p class="label tilde" data-reveal>How it works</p>
 
@@ -255,6 +266,7 @@
       </div>
     </section>
 
+    <div class="garden bleed" data-garden aria-hidden="true"></div>
     <footer>
       <span>© <span data-year-now>2026</span> Sprout Squad</span>
       <nav aria-label="Footer">

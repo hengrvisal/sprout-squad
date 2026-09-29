@@ -277,6 +277,122 @@
     });
   }
 
+  // ---------- vines ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  const LEAF = 'M0,0 C 18,-26 62,-34 96,-6 C 70,26 26,24 0,0 Z';
+  const BUDS = ['var(--g1)', 'var(--g2)', 'var(--g3)', 'var(--g4)'];
+  let gradN = 0;
+  const el = (tag, attrs = {}, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+
+  function buildVines(svg) {
+    const paths = JSON.parse(svg.dataset.vine);
+    const id = `leafgrad${gradN++}`;
+    const defs = el('defs', {}, svg);
+    const g = el('linearGradient', { id, x1: '0', y1: '0', x2: '1', y2: '0' }, defs);
+    el('stop', { offset: '0', 'stop-color': '#3DBB57' }, g);
+    el('stop', { offset: '1', 'stop-color': '#A6E57F' }, g);
+    const r = rng(paths.join('').length);
+    const DRAW = 2.4;
+
+    paths.forEach((d, pi) => {
+      const main = pi === 0;
+      const grp = el('g', {}, svg);
+      const shadow = el('path', { d, class: 'stem-shadow' }, grp);
+      const stem = el('path', { d, class: `stem${main ? '' : ' thin'}` }, grp);
+      const len = stem.getTotalLength();
+      const dur = DRAW * (main ? 1 : 0.8);
+      [shadow, stem].forEach((p) => { p.style.setProperty('--len', len); p.style.setProperty('--dur', `${dur}s`); });
+      const start = pi * 0.25;
+      if (start) [shadow, stem].forEach((p) => (p.style.animationDelay = `${start}s`));
+
+      // leaves along the stem, alternating sides, bigger near the edge
+      const step = main ? 58 : 50;
+      let side = 1;
+      for (let s = 50; s < len - 24; s += step + r() * 18) {
+        const p = stem.getPointAtLength(s);
+        const q = stem.getPointAtLength(Math.min(len, s + 2));
+        const ang = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI;
+        const t = s / len;
+        const size = (main ? 0.95 : 0.7) * (1.15 - 0.55 * t) * (0.85 + r() * 0.3);
+        const at = el('g', { transform: `translate(${p.x.toFixed(1)},${p.y.toFixed(1)}) rotate(${(ang + side * (48 + r() * 18)).toFixed(1)})` }, grp);
+        const grow = el('g', { class: 'grow' }, at);
+        grow.style.setProperty('--delay', `${(start + dur * t * 0.9 + 0.1).toFixed(2)}s`);
+        el('path', { d: LEAF, class: 'leaf', fill: `url(#${id})`, transform: `scale(${size.toFixed(2)})` }, grow);
+        el('path', { d: 'M4,-2 C 30,-10 58,-12 84,-6', class: 'rib', transform: `scale(${size.toFixed(2)})` }, grow);
+        side = -side;
+      }
+
+      // a bud at the tip: one of the grid's green squares, the app's signature
+      const tip = stem.getPointAtLength(len);
+      const at = el('g', { transform: `translate(${tip.x.toFixed(1)},${tip.y.toFixed(1)}) rotate(${(r() * 20 - 10).toFixed(1)})` }, grp);
+      const grow = el('g', { class: 'grow' }, at);
+      grow.style.setProperty('--delay', `${(start + dur * 0.92).toFixed(2)}s`);
+      const b = main ? 34 : 24;
+      el('rect', { x: -b / 2 + 4, y: -b / 2 + 5, width: b, height: b, rx: b * 0.28, fill: 'var(--line)' }, grow);
+      el('rect', { x: -b / 2, y: -b / 2, width: b, height: b, rx: b * 0.28, class: 'bud', fill: BUDS[(pi + 2) % 4] }, grow);
+    });
+  }
+
+  $$('svg[data-vine]').forEach((svg) => {
+    buildVines(svg);
+    const go = () => svg.classList.add('go');
+    if (reduce) return go();
+    if (svg.hasAttribute('data-on-visible') && io) {
+      const holder = svg.closest('section') || svg;
+      const vio = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { go(); vio.disconnect(); } }), { threshold: 0.1 });
+      vio.observe(holder);
+    } else setTimeout(go, 200);
+  });
+
+  // vines drift outward as you scroll past the hero, like curtains opening
+  const heroVines = $$('.stage > .vines .vine');
+  if (heroVines.length && !reduce) {
+    let queued = false;
+    const onScroll = () => {
+      queued = false;
+      const y = Math.min(scrollY, 900);
+      heroVines[0].style.translate = `${-y * 0.18}px ${y * 0.08}px`;
+      if (heroVines[1]) heroVines[1].style.translate = `${y * 0.18}px ${y * 0.05}px`;
+    };
+    window.addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(onScroll); } }, { passive: true });
+  }
+
+  // ---------- the garden ----------
+  const garden = $('[data-garden]');
+  if (garden) {
+    const r = rng(99);
+    const n = Math.max(10, Math.ceil(innerWidth / 64));
+    for (let i = 0; i < n; i++) {
+      const h = 70 + r() * 150;
+      const w = 70 + r() * 30;
+      const svg = el('svg', { viewBox: `0 0 100 ${h}`, width: w, height: h });
+      const bend = (r() - 0.5) * 18;
+      const top = 30;
+      el('path', { d: `M50 ${h} C ${50 + bend} ${h * 0.6}, ${50 - bend} ${top + 30}, 50 ${top}`, fill: 'none', stroke: 'var(--g3)', 'stroke-width': 5, 'stroke-linecap': 'round' }, svg);
+      const s = 0.45 + r() * 0.25;
+      el('path', { d: LEAF, fill: i % 3 ? 'var(--g3)' : 'var(--g2)', transform: `translate(50 ${top}) rotate(${-150 - r() * 20}) scale(${s})` }, svg);
+      el('path', { d: LEAF, fill: i % 2 ? 'var(--g2)' : 'var(--g1)', transform: `translate(50 ${top}) rotate(${-30 + r() * 20}) scale(${s * 0.9})` }, svg);
+      if (r() < 0.35) {
+        const b = 14;
+        el('rect', { x: 50 - b / 2, y: top - 22, width: b, height: b, rx: 4, fill: BUDS[i % 4], stroke: 'var(--line)', 'stroke-width': 2 }, svg);
+      }
+      svg.style.setProperty('--delay', `${(Math.abs(i - n / 2) / n) * 1.2}s`);
+      if (r() < 0.6) svg.classList.add('swaying');
+      garden.appendChild(svg);
+    }
+    const grow = () => garden.classList.add('go');
+    if (reduce || !io) grow();
+    else {
+      const gio = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { grow(); gio.disconnect(); } }), { threshold: 0.2 });
+      gio.observe(garden);
+    }
+  }
+
   // ---------- waitlist ----------
   const cfg = window.SPROUT || {};
   const configured = cfg.supabaseUrl && cfg.publishableKey && !cfg.publishableKey.includes('xxx');
