@@ -131,7 +131,7 @@ function HowSlide() {
     },
     {
       title: 'Share with your squad',
-      body: 'Friends see your grid and send kudos. Squads are coming soon.',
+      body: 'Start a squad or join one with a code. Squadmates see each other’s grids and today’s wins.',
       demo: null,
     },
   ];

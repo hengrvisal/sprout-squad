@@ -1,12 +1,21 @@
 import { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfile } from '@/hooks/profile';
 import { fonts, radius, useColors } from '@/theme/tokens';
 import { Chunky } from './ui';
 
 /** Scrollable tab screen with the Sprout Squad header. */
-export function Screen({ children }: { children: ReactNode }) {
+export function Screen({
+  children,
+  refreshing,
+  onRefresh,
+}: {
+  children: ReactNode;
+  /** Pass both to enable pull-to-refresh. */
+  refreshing?: boolean;
+  onRefresh?: () => void;
+}) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { profile } = useProfile();
@@ -14,6 +23,7 @@ export function Screen({ children }: { children: ReactNode }) {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.screen }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
+        refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={c.ink} /> : undefined}
         contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 16, paddingBottom: insets.bottom + 110, gap: 16 }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -51,7 +51,8 @@ src/
     sign-in.tsx        email → 6-digit code
     (tabs)/            Today · Squad · Me, custom pill tab bar
   components/          MonthGrid, Screen, ui primitives (Chunky hard-shadow cards, Button, Chip)
-  hooks/               auth, entries (counts + today, optimistic writes), profile
+  hooks/               auth, entries (counts + today, optimistic writes), profile, squads
+  components/squad/    StartOrJoin, MemberCard
   lib/                 supabase client, dates (pure, tested), categories
   theme/tokens.ts      colours (light/dark), fonts, radii from the web prototype
 supabase/migrations/   schema + RLS
@@ -63,12 +64,15 @@ supabase/migrations/   schema + RLS
 - `entries`: one row per thing done: `text`, `category`, `done_on` (the user's **local** date, set by the app)
 - `day_counts(from, to)` RPC: per-day totals for the grid, aggregated server-side
 
-RLS: in phase 1 you can only read and write your own rows.
+- `squads` / `squad_members`: a person can be in up to 10 squads of up to 10 people. Create, join and leave go through the `create_squad`, `join_squad`, `leave_squad` RPCs.
+- `squad_day_counts(squad, from, to)` RPC: per-member daily totals for the squad view
+
+RLS: you write only your own rows. You can read your squadmates' profiles and entries, and nobody else's.
 
 ## Roadmap
 
 - [x] **Phase 1 · Solo loop**: sign-in, log/remove today's wins, monthly grid with month navigation, streak, profile
-- [ ] **Phase 2 · Squads**: invite code, squad membership, friends' grids + today list, RLS widened to squad members
+- [x] **Phase 2 · Squads**: multiple squads (10 people max), invite codes, friends' grids + today list, squadmate-only read access
 - [ ] **Phase 3 · Kudos + nudges**: 🔥👏💪🌱 reactions, push notifications (kudos received, gentle evening reminder)
 - [ ] **Later · Rewind**: yearly recap: 12-month grid, top categories, longest streak, busiest month
 # sprout-squad

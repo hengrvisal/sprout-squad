@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Pressable, PressableProps, StyleProp, StyleSheet, Text, TextProps, View, ViewStyle } from 'react-native';
+import { Pressable, PressableProps, StyleProp, StyleSheet, Text, TextInput, TextInputProps, TextProps, View, ViewStyle } from 'react-native';
 import { border, fonts, radius, shadowOffset, useColors } from '@/theme/tokens';
 
 /**
@@ -162,5 +162,32 @@ export function Dot({ color, size = 10 }: { color: string; size?: number }) {
   const c = useColors();
   return (
     <View style={{ width: size, height: size, borderRadius: size, backgroundColor: color, borderWidth: 1, borderColor: c.line }} />
+  );
+}
+
+/** Standard text input with the chunky outline. */
+export function Field({ style, ...rest }: TextInputProps) {
+  const c = useColors();
+  return (
+    <TextInput
+      placeholderTextColor={c.ink3}
+      {...rest}
+      style={[
+        {
+          flex: 1,
+          minWidth: 0,
+          backgroundColor: c.screen,
+          borderWidth: border,
+          borderColor: c.line,
+          borderRadius: radius.md,
+          paddingVertical: 11,
+          paddingHorizontal: 12,
+          fontFamily: fonts.body,
+          fontSize: 15,
+          color: c.ink,
+        },
+        style,
+      ]}
+    />
   );
 }

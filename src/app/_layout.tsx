@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/hooks/auth';
 import { EntriesProvider } from '@/hooks/entries';
 import { ProfileProvider, useProfile } from '@/hooks/profile';
+import { SquadsProvider } from '@/hooks/squads';
 import { useColors } from '@/theme/tokens';
 
 function RootStack() {
@@ -58,8 +59,10 @@ export default function RootLayout() {
       <AuthProvider>
         <ProfileProvider>
           <EntriesProvider>
-            <StatusBar style="auto" />
-            <RootStack />
+            <SquadsProvider>
+              <StatusBar style="auto" />
+              <RootStack />
+            </SquadsProvider>
           </EntriesProvider>
         </ProfileProvider>
       </AuthProvider>
