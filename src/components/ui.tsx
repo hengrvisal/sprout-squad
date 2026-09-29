@@ -211,8 +211,9 @@ export function TapCard({
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}>
       {({ pressed }) => (
-        <View style={{ transform: pressed ? [{ translateX: 2 }, { translateY: 2 }] : [] }}>
-          <Chunky bg={bg} style={[{ padding: 16, gap: 12 }, style]} offset={pressed ? 1 : shadowOffset}>
+        // dims on press instead of moving, so the layout stays put
+        <View style={{ opacity: pressed ? 0.55 : 1 }}>
+          <Chunky bg={bg} style={[{ padding: 16, gap: 12 }, style]}>
             {children}
           </Chunky>
           <Text style={{ position: 'absolute', top: 10, right: 16, fontFamily: fonts.mono, fontSize: 20, color: c.ink3 }}>›</Text>
