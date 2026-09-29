@@ -5,6 +5,7 @@ import type { CategoryKey } from '@/lib/categories';
 import { addDays, DayCounts, DayKey, monthAt, monthRange, ymd } from '@/lib/dates';
 import type { Kudo, KudoEmoji } from '@/lib/kudos';
 import { cleanText, NOTE_MAX_LEN } from '@/lib/plans';
+import { notifyServer } from '@/lib/notifications';
 import type { PlantData } from '@/lib/plant';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './auth';
@@ -318,6 +319,7 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
         apply(had);
         throw error;
       }
+      if (!had && !error) notifyServer({ type: 'kudo', to: toUser });
     },
     [userId, members],
   );
@@ -339,6 +341,7 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
         apply(before);
         throw error;
       }
+      if (note) notifyServer({ type: 'note', to: toUser });
     },
     [userId, members],
   );

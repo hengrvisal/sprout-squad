@@ -3,15 +3,28 @@ import { readCache, writeCache } from '@/lib/cache';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './auth';
 
-export type Profile = { id: string; display_name: string; emoji: string; onboarded_at: string | null };
+export type Profile = {
+  id: string;
+  display_name: string;
+  emoji: string;
+  onboarded_at: string | null;
+  /** IANA time zone, so server-side nudges arrive at a sensible local hour. */
+  tz?: string | null;
+  // push preferences (older cached profiles may not have them: treat missing as on)
+  notify_kudos?: boolean;
+  notify_nudges?: boolean;
+  notify_sessions?: boolean;
+};
 
-const COLUMNS = 'id,display_name,emoji,onboarded_at';
+export type ProfilePatch = Partial<Pick<Profile, 'display_name' | 'emoji' | 'tz' | 'notify_kudos' | 'notify_nudges' | 'notify_sessions'>>;
+
+const COLUMNS = 'id,display_name,emoji,onboarded_at,tz,notify_kudos,notify_nudges,notify_sessions';
 
 type ProfileState = {
   profile: Profile | null;
   /** True once we know this user's profile (from cache or server), so routing can decide. */
   ready: boolean;
-  save: (patch: Partial<Pick<Profile, 'display_name' | 'emoji'>>) => Promise<void>;
+  save: (patch: ProfilePatch) => Promise<void>;
   /** Record that the intro has been seen (on this account, across devices). */
   finishOnboarding: () => Promise<void>;
 };

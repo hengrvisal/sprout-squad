@@ -71,6 +71,8 @@ export default function Me() {
         <Divider />
         <Row label="Edit profile" onPress={() => router.push('/profile')} />
         <Divider />
+        <Row label="Notifications" onPress={() => router.push('/notifications')} />
+        <Divider />
         <Row label="Account" value="Sign out, delete" onPress={() => router.push('/account')} />
         <Divider />
         <Row label="Privacy & support" value="sproutsquad.app" onPress={() => router.push('/account')} />

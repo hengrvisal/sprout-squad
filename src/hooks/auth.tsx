@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { clearCache } from '@/lib/cache';
+import { unregisterPush } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 
 type AuthState = { session: Session | null; loading: boolean };
@@ -46,6 +47,7 @@ export async function verifyCode(email: string, token: string) {
 export async function signOut() {
   const { data } = await supabase.auth.getSession();
   const uid = data.session?.user.id;
+  await unregisterPush(); // while still signed in, so the server lets us remove it
   await supabase.auth.signOut();
   if (uid) await clearCache(uid);
 }

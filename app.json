@@ -42,6 +42,12 @@
             "backgroundColor": "#0B1022"
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#3DBB57"
+        }
       ]
     ],
     "scheme": "sproutsquad"

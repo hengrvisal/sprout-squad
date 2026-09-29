@@ -5,6 +5,7 @@ import { MonthGrid } from '@/components/MonthGrid';
 import { Screen } from '@/components/Screen';
 import { Body, Button, Card, Chip, Dot, Eyebrow, Mono, TapCard } from '@/components/ui';
 import { useEntries } from '@/hooks/entries';
+import { useNotifications } from '@/hooks/notifications';
 import { useSquads } from '@/hooks/squads';
 import { CATEGORIES, CategoryKey } from '@/lib/categories';
 import { MONTHS, monthAt, streak, weekTotal } from '@/lib/dates';
@@ -21,6 +22,7 @@ export default function Today() {
   const c = useColors();
   const { counts, today, add, error, plans, completePlan } = useEntries();
   const { received, notes, refresh: refreshSquads } = useSquads();
+  const { showPrompt, enable, dismissPrompt } = useNotifications();
   const [text, setText] = useState('');
   const [cat, setCat] = useState<CategoryKey>('study');
   const [picking, setPicking] = useState(false);
@@ -215,6 +217,18 @@ export default function Today() {
           </View>
         )}
       </TapCard>
+
+      {showPrompt && (
+        <Card bg={c.lilac} style={{ gap: 10 }}>
+          <Text style={{ fontFamily: fonts.displayBold, fontSize: 17, color: c.tangInk }}>Nice one. Want a heads-up when your squad cheers you on?</Text>
+          <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+            <Button label="Turn on" onPress={() => enable().finally(dismissPrompt)} />
+            <Pressable accessibilityRole="button" onPress={dismissPrompt} hitSlop={8}>
+              <Text style={{ fontFamily: fonts.bodySemi, fontSize: 14, color: c.tangInk }}>Not now</Text>
+            </Pressable>
+          </View>
+        </Card>
+      )}
 
       {/* 3. the month */}
       <TapCard label="Open month history" onPress={() => router.push('/month')} style={{ gap: 10 }}>

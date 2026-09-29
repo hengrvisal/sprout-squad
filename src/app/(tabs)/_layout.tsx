@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { ComponentProps, useEffect, useState } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNotificationResponses } from '@/hooks/notifications';
 import { border, fonts, useColors } from '@/theme/tokens';
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
@@ -100,6 +101,7 @@ function PillTabBar({ state, navigation }: TabBarProps) {
 }
 
 export default function TabsLayout() {
+  useNotificationResponses();
   const c = useColors();
   return (
     <Tabs

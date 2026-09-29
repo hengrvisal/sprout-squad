@@ -8,6 +8,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/hooks/auth';
 import { EntriesProvider } from '@/hooks/entries';
+import { NotificationsProvider } from '@/hooks/notifications';
 import { ProfileProvider, useProfile } from '@/hooks/profile';
 import { SquadsProvider } from '@/hooks/squads';
 import { useColors } from '@/theme/tokens';
@@ -36,6 +37,7 @@ function RootStack() {
         <Stack.Screen name="plan" />
         <Stack.Screen name="week" />
         <Stack.Screen name="search" />
+        <Stack.Screen name="notifications" />
         <Stack.Screen name="month" />
         <Stack.Screen name="plant" />
         <Stack.Screen name="friend/[id]" />
@@ -71,8 +73,10 @@ export default function RootLayout() {
         <ProfileProvider>
           <EntriesProvider>
             <SquadsProvider>
-              <StatusBar style="auto" />
-              <RootStack />
+              <NotificationsProvider>
+                <StatusBar style="auto" />
+                <RootStack />
+              </NotificationsProvider>
             </SquadsProvider>
           </EntriesProvider>
         </ProfileProvider>
