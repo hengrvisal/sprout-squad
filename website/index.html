@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sprout Squad · Grow your green together</title>
   <meta name="description" content="Log the productive things you do each day. Your squad sees your grid fill up, and you see theirs. Kudos, no leaderboard.">
-  <meta name="theme-color" content="#DCE8FF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0B1022" media="(prefers-color-scheme: dark)">
   <meta property="og:title" content="Sprout Squad">
   <meta property="og:description" content="Log the small wins. Watch your month turn green, together with friends.">
@@ -16,203 +16,247 @@
   <link rel="apple-touch-icon" href="/icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
   <link rel="stylesheet" href="/styles.css">
+  <script>document.documentElement.classList.add('js')</script>
 </head>
 <body>
   <div class="wrap">
     <header class="nav">
-      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>Sprout Squad</a>
+      <a class="brand" href="/" aria-label="Sprout Squad home"><span class="brand-mark"><img src="/mark.png" alt=""></span><span class="brand-name">Sprout Squad</span></a>
       <nav class="nav-links" aria-label="Main">
         <a href="#how">How it works</a>
-        <a href="#squads">Squads</a>
+        <a href="#why">Why</a>
         <a href="#faq">FAQ</a>
         <a class="btn small" href="#join">Join the beta</a>
       </nav>
     </header>
 
     <main>
-      <!-- hero -->
+      <!-- ============ hero ============ -->
       <div class="hero">
-        <div class="hero-copy">
-          <span class="eyebrow">iPhone beta · free</span>
-          <h1>Grow your <span class="green-chip">green</span> together.</h1>
-          <p class="lede">Log the small wins. Watch your month turn green. See your friends’ grids fill up too.</p>
-          <form class="join" data-join novalidate>
-            <div class="join-row">
-              <label for="email-top" hidden>Email</label>
-              <input id="email-top" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
-              <button class="btn" type="submit">Join the beta</button>
+        <div class="stage" data-parallax-root>
+          <!-- floating pieces -->
+          <div class="float f1" data-depth="0.6">
+            <div class="bob">
+              <div class="chip-card friend-mini">
+                <div class="who"><span class="av">🦊</span><div>Mia<small>3 today · 9d streak</small></div></div>
+                <div class="month mini" data-grid="mia"></div>
+              </div>
             </div>
-            <div class="phones" role="radiogroup" aria-label="Your phone">
-              <span>My phone:</span>
-              <label><input type="radio" name="phone" value="iphone" checked><span class="pill">iPhone</span></label>
-              <label><input type="radio" name="phone" value="android"><span class="pill">Android</span></label>
-              <label><input type="radio" name="phone" value="other"><span class="pill">Other</span></label>
+          </div>
+          <div class="float f2" data-depth="-0.4">
+            <div class="bob"><div class="chip-card winchip"><span class="dot" style="background:#FFB443"></span>Closing shift, 6 hours</div></div>
+          </div>
+          <div class="float f3" data-depth="0.5">
+            <div class="bob">
+              <div class="chip-card toast"><span class="e">🔥</span><div>Jun sent you kudos<small>just now</small></div></div>
             </div>
-            <p class="join-msg" role="status" aria-live="polite"></p>
-          </form>
+          </div>
+          <div class="float f4" data-depth="-0.7">
+            <div class="bob">
+              <div class="chip-card friend-mini" style="--r:4deg">
+                <div class="who"><span class="av">🌻</span><div>Ari<small>2 today · 6d streak</small></div></div>
+                <div class="month mini" data-grid="ari"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- the phone -->
+          <div class="phone" id="hero-phone" aria-label="The Sprout Squad app: today’s count, this month’s grid and today’s wins">
+            <div class="screen">
+              <div class="app-top"><b><img src="/mark.png" alt="">Sprout Squad</b><span class="me"><span class="av">🐸</span>You</span></div>
+              <div class="strip">
+                <span class="big" data-count>1</span>
+                <span class="lbl" data-count-label>thing done<br>today</span>
+                <span class="stat"><small>STREAK</small><b>12d</b></span>
+                <span class="stat"><small>WEEK</small><b data-week>17</b></span>
+              </div>
+              <div class="pcard">
+                <h4 data-month-title>September <span>2026</span></h4>
+                <div class="month" data-grid="me" data-live></div>
+              </div>
+              <div class="pcard">
+                <h4>Logged today</h4>
+                <div class="wins" data-wins>
+                  <div class="win"><span class="dot" style="background:#7CC4FF"></span><span class="t">Finished lecture notes</span><span class="when">2h</span></div>
+                </div>
+                <div class="kudos-in"><span class="k">🔥<b data-k-fire>2</b></span><span class="k">💪<b>1</b></span>from Mia, Jun</div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="phone" aria-label="The Sprout Squad app: today's count, streak, this month's grid and today's wins">
-          <div class="phone-top">
-            <span class="brand"><span class="brand-mark" aria-hidden="true"></span>Sprout Squad</span>
-            <span class="me"><span class="av">🐸</span>Visal</span>
+        <h1 data-reveal>Grow your <span class="grow">green</span> together.</h1>
+        <p class="sub label muted" data-reveal style="--d:.1s">Log the small wins. Watch your month turn green. See your friends’ grids fill up too.</p>
+
+        <form class="join" data-join novalidate data-reveal style="--d:.2s">
+          <div class="join-row">
+            <label for="email-top" hidden>Email</label>
+            <input id="email-top" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+            <button class="btn" type="submit">Join the beta</button>
           </div>
-          <div class="strip">
-            <span class="big">3</span>
-            <span class="lbl">things done<br>today</span>
-            <span class="stat"><small>STREAK</small><b>12d</b></span>
-            <span class="stat"><small>WEEK</small><b>19</b></span>
+          <div class="phones" role="radiogroup" aria-label="Your phone">
+            <span>My phone</span>
+            <label><input type="radio" name="phone" value="iphone" checked><span class="opt">iPhone</span></label>
+            <label><input type="radio" name="phone" value="android"><span class="opt">Android</span></label>
+            <label><input type="radio" name="phone" value="other"><span class="opt">Other</span></label>
           </div>
-          <div class="pcard">
-            <h4 data-month-title>September <span>2026</span></h4>
-            <div class="month grid-in" data-grid="me"></div>
-          </div>
-          <div class="pcard">
-            <div class="win"><span class="dot" style="background:#7CC4FF"></span><span class="t">Finished assignment draft</span><span class="when">40m</span></div>
-            <div class="win"><span class="dot" style="background:#FF6F91"></span><span class="t">5km run</span><span class="when">3h</span></div>
-          </div>
-        </div>
+          <p class="join-msg" role="status" aria-live="polite"></p>
+        </form>
       </div>
 
-      <!-- how it works -->
-      <section id="how">
-        <div class="section-head">
-          <span class="eyebrow">How it works</span>
-          <h2>Three steps, once a day.</h2>
-          <p>No to-do lists, no goals to set up. Just write down what you actually got done.</p>
-        </div>
-        <ol class="steps">
-          <li class="card">
-            <span class="num">1</span>
-            <h3>Log a win</h3>
-            <p>A lecture, a shift, a run, finally doing the laundry. If it moved your day forward, it counts.</p>
-            <div class="demo win"><span class="dot" style="background:#FFB443"></span><span class="t">Closing shift, 6 hours</span><span class="when">now</span></div>
-          </li>
-          <li class="card">
-            <span class="num">2</span>
-            <h3>Watch your square</h3>
-            <p>Every win turns today’s square a shade greener. Keep showing up and the month fills in.</p>
-            <div class="demo ramp" aria-hidden="true">
-              <i style="background:var(--g0)"></i><i style="background:var(--g1)"></i><i style="background:var(--g2)"></i><i style="background:var(--g3)"></i><i style="background:var(--g4)"></i>
+      <!-- ============ how it works ============ -->
+      <section id="how" class="center">
+        <div class="section-mark" data-reveal><img src="/mark.png" alt=""></div>
+        <p class="label tilde" data-reveal>How it works</p>
+
+        <div class="features">
+          <!-- 1 log -->
+          <article class="feature" data-reveal data-demo="type">
+            <p class="label">Write down what you<br>actually got done</p>
+            <div class="phone">
+              <div class="screen">
+                <div class="app-top"><b><img src="/mark.png" alt="">Sprout Squad</b></div>
+                <div class="pcard">
+                  <h4>What did you get done?</h4>
+                  <div class="typing"><div class="field"><span data-typed></span><span class="caret"></span></div><span class="go">Log</span></div>
+                  <div class="cats">
+                    <span class="on"><span class="dot" style="background:#7CC4FF"></span>Study</span>
+                    <span><span class="dot" style="background:#FFB443"></span>Work</span>
+                    <span><span class="dot" style="background:#B9A6FF"></span>Build</span>
+                    <span><span class="dot" style="background:#FF6F91"></span>Move</span>
+                    <span><span class="dot" style="background:#6FE0C8"></span>Home</span>
+                  </div>
+                </div>
+                <div class="pcard"><h4>Logged today</h4><div class="wins" data-typed-list></div></div>
+              </div>
             </div>
-          </li>
-          <li class="card">
-            <span class="num">3</span>
-            <h3>Share with your squad</h3>
-            <p>Start a squad, send friends the code. You see each other’s grids and send kudos.</p>
-            <div class="demo kudos" aria-hidden="true"><span class="on">🔥<b>3</b></span><span>👏<b>1</b></span><span class="on">💪<b>2</b></span><span>🌱</span></div>
-          </li>
-        </ol>
-      </section>
-
-      <!-- squads -->
-      <section id="squads" class="squad">
-        <div class="squad-copy">
-          <span class="eyebrow">Squads</span>
-          <h2>Motivation is better with friends.</h2>
-          <p>Seeing your mates’ grids go green is the nudge to fill in yours. Up to 10 people per squad, and you can be in a few.</p>
-          <ul class="checks">
-            <li>See their month and what they got done today</li>
-            <li>Send 🔥 👏 💪 🌱 kudos in one tap</li>
-            <li>No rankings, no leaderboard, no streak shaming</li>
-          </ul>
-        </div>
-        <div class="friends">
-          <article class="card friend">
-            <div class="who"><span class="av">🦊</span><div>Mia<small>3 today · 9d</small></div></div>
-            <div class="month mini" data-grid="mia"></div>
-            <div class="did"><div><span class="dot" style="background:#7CC4FF"></span>Lecture notes</div><div><span class="dot" style="background:#6FE0C8"></span>Meal prep</div></div>
-            <div class="kudos"><span class="on">🔥<b>2</b></span><span>👏<b>1</b></span></div>
+            <div class="caption"><h3>Log a win</h3><p>A lecture, a shift, a run, the laundry. If it moved your day forward, it counts.</p></div>
           </article>
-          <article class="card friend">
-            <div class="who"><span class="av">🐙</span><div>Jun<small>1 today · 4d</small></div></div>
-            <div class="month mini" data-grid="jun"></div>
-            <div class="did"><div><span class="dot" style="background:#B9A6FF"></span>Shipped login screen</div></div>
-            <div class="kudos"><span>🔥</span><span class="on">💪<b>1</b></span></div>
-          </article>
-          <article class="card friend">
-            <div class="who"><span class="av">🌻</span><div>Ari<small>2 today · 6d</small></div></div>
-            <div class="month mini" data-grid="ari"></div>
-            <div class="did"><div><span class="dot" style="background:#FFE45C"></span>Sketchbook page</div><div><span class="dot" style="background:#FF6F91"></span>Yoga</div></div>
-            <div class="kudos"><span class="on">🌱<b>3</b></span></div>
-          </article>
-        </div>
-      </section>
 
-      <!-- what counts -->
-      <section>
-        <div class="card band">
-          <h2>Small wins count.</h2>
-          <p>Sprout Squad isn’t a productivity score. It’s a place to notice the things you did, and to cheer on your friends for theirs.</p>
-          <div class="cats">
-            <span class="pill"><span class="dot" style="background:#7CC4FF"></span>Study</span>
-            <span class="pill"><span class="dot" style="background:#FFB443"></span>Work</span>
-            <span class="pill"><span class="dot" style="background:#B9A6FF"></span>Build</span>
-            <span class="pill"><span class="dot" style="background:#FF6F91"></span>Move</span>
-            <span class="pill"><span class="dot" style="background:#6FE0C8"></span>Home</span>
-            <span class="pill"><span class="dot" style="background:#FFE45C"></span>Create</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- faq -->
-      <section id="faq">
-        <div class="section-head">
-          <span class="eyebrow">Questions</span>
-          <h2>Good to know</h2>
-        </div>
-        <div class="faq">
-          <details class="card">
-            <summary>Is it free?</summary>
-            <p>Yes. The beta is free, and there are no ads.</p>
-          </details>
-          <details class="card">
-            <summary>Which phones does it work on?</summary>
-            <p>The beta is on iPhone, through Apple’s TestFlight app. Android is planned. Pick “Android” when you join and we’ll let you know.</p>
-          </details>
-          <details class="card">
-            <summary>Who can see what I log?</summary>
-            <p>Only people in a squad with you. There’s no public profile and no feed for strangers. If you’re not in a squad, it’s just you.</p>
-          </details>
-          <details class="card">
-            <summary>Can I delete my data?</summary>
-            <p>Any time, from inside the app: Me → Delete account. It removes everything straight away. <a href="/delete-account">More on deleting your account</a>.</p>
-          </details>
-          <details class="card">
-            <summary>What happens after I join the beta?</summary>
-            <p>We’ll email you a TestFlight invite when there’s a spot. Install TestFlight, tap the link, and you’re in.</p>
-          </details>
-        </div>
-      </section>
-
-      <!-- final cta -->
-      <section id="join">
-        <div class="card final">
-          <h2>Start your first green square.</h2>
-          <p class="lede">Join the beta and we’ll send you an invite. Bring a friend or two.</p>
-          <form class="join" data-join novalidate>
-            <div class="join-row">
-              <label for="email-bottom" hidden>Email</label>
-              <input id="email-bottom" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
-              <button class="btn" type="submit">Join the beta</button>
+          <!-- 2 grid -->
+          <article class="feature" data-reveal data-demo="grid" style="--d:.1s">
+            <p class="label">Every win turns today<br>a shade greener</p>
+            <div class="phone">
+              <div class="screen">
+                <div class="app-top"><b><img src="/mark.png" alt="">Sprout Squad</b></div>
+                <div class="pcard"><h4 data-month-title>September <span>2026</span></h4><div class="month" data-grid="grow"></div></div>
+              </div>
             </div>
-            <div class="phones" role="radiogroup" aria-label="Your phone">
-              <span>My phone:</span>
-              <label><input type="radio" name="phone" value="iphone" checked><span class="pill">iPhone</span></label>
-              <label><input type="radio" name="phone" value="android"><span class="pill">Android</span></label>
-              <label><input type="radio" name="phone" value="other"><span class="pill">Other</span></label>
+            <div class="caption"><h3>Watch your month</h3><p>Keep showing up and the calendar fills in. No goals to set, no score to chase.</p></div>
+          </article>
+
+          <!-- 3 squad -->
+          <article class="feature" data-reveal data-demo="squad">
+            <p class="label">Up to 10 friends.<br>No strangers. No feed.</p>
+            <div class="phone">
+              <div class="screen">
+                <div class="app-top"><b><img src="/mark.png" alt="">Uni crew</b><span class="me">K7MPQ4</span></div>
+                <div class="pcard">
+                  <div class="app-top"><b style="font-size:13px"><span class="av">🦊</span>Mia</b><span class="mono" style="font-size:10px;color:var(--ink-3)">3 today · 9d</span></div>
+                  <div class="friend-row"><div class="month mini" data-grid="mia"></div><div class="did"><div><span class="dot" style="background:#7CC4FF"></span>Lecture notes</div><div><span class="dot" style="background:#FF6F91"></span>5km run</div><div><span class="dot" style="background:#6FE0C8"></span>Meal prep</div></div></div>
+                </div>
+                <div class="pcard">
+                  <div class="app-top"><b style="font-size:13px"><span class="av">🐙</span>Jun</b><span class="mono" style="font-size:10px;color:var(--ink-3)">1 today · 4d</span></div>
+                  <div class="friend-row"><div class="month mini" data-grid="jun"></div><div class="did"><div><span class="dot" style="background:#B9A6FF"></span>Shipped login screen</div></div></div>
+                </div>
+              </div>
             </div>
-            <p class="join-msg" role="status" aria-live="polite"></p>
-            <p class="fine">We’ll only email you about the beta. <a href="/privacy">Privacy</a></p>
-          </form>
+            <div class="caption"><h3>Share with your squad</h3><p>Send friends a code. You see each other’s month and what they did today.</p></div>
+          </article>
+
+          <!-- 4 kudos -->
+          <article class="feature" data-reveal data-demo="kudos" style="--d:.1s">
+            <p class="label">No likes. No rankings.<br>Just cheering each other on.</p>
+            <div class="phone">
+              <div class="screen">
+                <div class="app-top"><b><img src="/mark.png" alt="">Uni crew</b></div>
+                <div class="pcard">
+                  <div class="app-top"><b style="font-size:13px"><span class="av">🌻</span>Ari</b><span class="mono" style="font-size:10px;color:var(--ink-3)">2 today · 6d</span></div>
+                  <div class="friend-row"><div class="month mini" data-grid="ari"></div><div class="did"><div><span class="dot" style="background:#FFE45C"></span>Sketchbook page</div><div><span class="dot" style="background:#FF6F91"></span>Yoga, 30 min</div></div></div>
+                  <div class="kudos" data-kudos>
+                    <button type="button" tabindex="-1" data-k="🔥">🔥<b>2</b></button>
+                    <button type="button" tabindex="-1" data-k="👏">👏<b>1</b></button>
+                    <button type="button" tabindex="-1" data-k="💪">💪<b></b></button>
+                    <button type="button" tabindex="-1" data-k="🌱">🌱<b></b></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="caption"><h3>Send kudos</h3><p>🔥 👏 💪 🌱 in one tap. It’s encouragement, not competition.</p></div>
+          </article>
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- ============ marquee ============ -->
+  <div class="marquee" aria-label="Things people log">
+    <div class="track" data-marquee></div>
+  </div>
+
+  <div class="wrap">
+    <!-- ============ why / story ============ -->
+    <section id="why">
+      <div class="story" data-reveal>
+        <p class="label">How this came to be</p>
+        <p>Most productivity apps want you to optimise. Set goals, hit targets, beat your streak, beat your friends. It’s a lot of pressure for something that should feel good.</p>
+        <p>We wanted something smaller. Write down what you actually did today, even if it was just the laundry. Let a few people who care about you see it. Notice that you’ve been showing up more than you thought.</p>
+      </div>
+
+      <div class="year-wrap" data-reveal>
+        <div class="year-head">
+          <h3>A year, one square at a time.</h3>
+          <div class="legend">less <i style="background:var(--g0)"></i><i style="background:var(--g1)"></i><i style="background:var(--g2)"></i><i style="background:var(--g3)"></i><i style="background:var(--g4)"></i> more</div>
+        </div>
+        <div class="year-scroll"><div class="year" data-year aria-label="An example year of wins"></div></div>
+        <div class="year-stats">
+          <div><b data-stat="days">0</b><span>green days</span></div>
+          <div><b data-stat="wins">0</b><span>things done</span></div>
+          <div><b data-stat="streak">0</b><span>longest streak</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ faq ============ -->
+    <section id="faq" class="center">
+      <p class="label tilde" data-reveal>Good to know</p>
+      <div class="faq" style="text-align:left">
+        <details data-reveal><summary>Is it free?</summary><p>Yes. The beta is free, and there are no ads.</p></details>
+        <details data-reveal><summary>Which phones does it work on?</summary><p>The beta is on iPhone, through Apple’s TestFlight app. Android is planned. Pick “Android” when you join and we’ll let you know.</p></details>
+        <details data-reveal><summary>Who can see what I log?</summary><p>Only people in a squad with you. There’s no public profile and no feed for strangers. If you’re not in a squad, it’s just you.</p></details>
+        <details data-reveal><summary>Can I delete my data?</summary><p>Any time, from inside the app: Me → Delete account. It removes everything straight away. <a href="/delete-account">More on deleting your account</a>.</p></details>
+        <details data-reveal><summary>What happens after I join the beta?</summary><p>We’ll email you a TestFlight invite when there’s a spot. Install TestFlight, tap the link, and you’re in.</p></details>
+      </div>
+    </section>
+
+    <!-- ============ final ============ -->
+    <section id="join">
+      <div class="final">
+        <img class="seed" src="/mark.png" alt="" data-reveal>
+        <h2 data-reveal>Start your first green square.</h2>
+        <p class="label muted" data-reveal>Join the beta. Bring a friend or two.</p>
+        <form class="join" data-join novalidate data-reveal>
+          <div class="join-row">
+            <label for="email-bottom" hidden>Email</label>
+            <input id="email-bottom" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+            <button class="btn" type="submit">Join the beta</button>
+          </div>
+          <div class="phones" role="radiogroup" aria-label="Your phone">
+            <span>My phone</span>
+            <label><input type="radio" name="phone2" value="iphone" checked><span class="opt">iPhone</span></label>
+            <label><input type="radio" name="phone2" value="android"><span class="opt">Android</span></label>
+            <label><input type="radio" name="phone2" value="other"><span class="opt">Other</span></label>
+          </div>
+          <p class="join-msg" role="status" aria-live="polite"></p>
+          <p class="eyebrow">We’ll only email you about the beta · <a href="/privacy">Privacy</a></p>
+        </form>
+      </div>
+    </section>
 
     <footer>
-      <span>© <span data-year>2026</span> Sprout Squad</span>
+      <span>© <span data-year-now>2026</span> Sprout Squad</span>
       <nav aria-label="Footer">
         <a href="/privacy">Privacy</a>
         <a href="/support">Support</a>
