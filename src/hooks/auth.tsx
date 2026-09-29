@@ -49,3 +49,13 @@ export async function signOut() {
   await supabase.auth.signOut();
   if (uid) await clearCache(uid);
 }
+
+/** Permanently delete the account and everything in it, then sign out. */
+export async function deleteAccount() {
+  const { data } = await supabase.auth.getSession();
+  const uid = data.session?.user.id;
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) throw error;
+  await supabase.auth.signOut({ scope: 'local' });
+  if (uid) await clearCache(uid);
+}

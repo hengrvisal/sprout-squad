@@ -76,6 +76,7 @@ RLS: you write only your own rows. You can read your squadmates' profiles and en
 - [x] **Phase 2 · Squads**: multiple squads (10 people max), invite codes, friends' grids + today list, squadmate-only read access
 - [x] **Phase 3a · Kudos**: 🔥👏💪🌱 on friends' cards, kudos received shown on Today
 - [x] **Release prep**: app icon, splash, bundle id `app.sproutsquad`, EAS build profiles, TestFlight guide (`docs/TESTFLIGHT.md`)
+- [x] **Website**: landing page with beta waitlist, privacy, support and delete-account pages (`website/`, see `docs/WEBSITE.md`); in-app account deletion
 - [ ] **Phase 3b · Dev build + push**: EAS development build, push for kudos received and a gentle evening reminder
 - [ ] **Phase 4 · iOS widget**: today prompt → your grid once you've logged, cycling through friends' grids
 - [ ] **Later · Rewind**: yearly recap: 12-month grid, top categories, longest streak, busiest month
