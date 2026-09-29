@@ -7,7 +7,7 @@ import { Body, Button, Card, Chip, Dot, Eyebrow, Mono, TapCard } from '@/compone
 import { useEntries } from '@/hooks/entries';
 import { useSquads } from '@/hooks/squads';
 import { CATEGORIES, CategoryKey } from '@/lib/categories';
-import { MONTHS, monthAt, streak } from '@/lib/dates';
+import { MONTHS, monthAt, streak, weekTotal } from '@/lib/dates';
 import { dayLabels } from '@/lib/format';
 import { tally } from '@/lib/kudos';
 import { planProgress, sortPlans } from '@/lib/plans';
@@ -31,6 +31,7 @@ export default function Today() {
   const current = CATEGORIES.find((k) => k.key === cat) ?? CATEGORIES[0];
   const planned = planProgress(plans);
   const latestNote = notes[0];
+  const week = weekTotal(counts);
 
   async function onTick(id: string) {
     setSaveError(null);
@@ -196,6 +197,13 @@ export default function Today() {
             ))}
             <Text style={{ fontFamily: fonts.body, fontSize: 12.5, color: c.ink3 }}>kudos today</Text>
           </View>
+        )}
+        {today.length === 0 && week > 0 && (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/week')} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
+            <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: c.ink2 }}>
+              Quiet day? You’ve done {week} {week === 1 ? 'thing' : 'things'} this week. <Text style={{ color: c.ink }}>See them ›</Text>
+            </Text>
+          </Pressable>
         )}
         {latestNote && (
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', paddingRight: 18 }}>
