@@ -3,5 +3,5 @@
 // Never put the secret / service_role key here.
 window.SPROUT = {
   supabaseUrl: 'https://tvvodvmbmeongbbbvfnx.supabase.co',
-  publishableKey: 'sb_publishable_xxx', // ← paste the same key as EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  publishableKey: 'sb_publishable_UWp-K6exWQzHv2D8pyrkzQ_tIK80BhP', // ← paste the same key as EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 };
