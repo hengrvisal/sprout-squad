@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { MonthGrid } from '@/components/MonthGrid';
 import { Screen } from '@/components/Screen';
 import { MemberCard } from '@/components/squad/MemberCard';
+import { PlantCard } from '@/components/squad/PlantCard';
 import { StartOrJoin } from '@/components/squad/StartOrJoin';
 import { Body, Button, Card, Chip, Eyebrow, H, Mono } from '@/components/ui';
 import { useAuth } from '@/hooks/auth';
@@ -15,7 +16,7 @@ export default function SquadTab() {
   const c = useColors();
   const { session } = useAuth();
   const me = session?.user.id;
-  const { squads, selected, select, members, loading, error, refresh, leave, toggleKudo } = useSquads();
+  const { squads, selected, select, members, loading, error, refresh, leave, toggleKudo, plant } = useSquads();
   const [adding, setAdding] = useState(false);
   const [pulling, setPulling] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -136,6 +137,8 @@ export default function SquadTab() {
                 <Button label="Invite" onPress={invite} />
               </View>
             </Card>
+
+            {plant && <PlantCard plant={plant} squadId={selected.id} members={members} me={me} />}
 
             {/* combined grid: compact so friends show up without much scrolling */}
             <Card style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>

@@ -4,6 +4,7 @@ import { readCache, writeCache } from '@/lib/cache';
 import type { CategoryKey } from '@/lib/categories';
 import { addDays, DayCounts, DayKey, monthAt, monthRange, ymd } from '@/lib/dates';
 import type { Kudo, KudoEmoji } from '@/lib/kudos';
+import type { PlantData } from '@/lib/plant';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './auth';
 
@@ -36,6 +37,8 @@ type SquadsState = {
   /** Send or take back a kudo for a squadmate, for today. */
   toggleKudo: (toUser: string, emoji: KudoEmoji) => Promise<void>;
   received: ReceivedKudo[];
+  /** The selected squad's plant (null until loaded, or if it failed). */
+  plant: PlantData | null;
 };
 
 const Ctx = createContext<SquadsState | null>(null);
@@ -68,13 +71,14 @@ export function SquadsProvider({ children }: { children: ReactNode }) {
   );
 }
 
-type Cached = { squads: Squad[]; selectedId: string | null; members: Member[]; received: ReceivedKudo[]; day: DayKey };
+type Cached = { squads: Squad[]; selectedId: string | null; members: Member[]; received: ReceivedKudo[]; day: DayKey; plant?: PlantData | null };
 
 function SquadsStore({ children, userId }: { children: ReactNode; userId: string | undefined }) {
   const [squads, setSquads] = useState<Squad[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [received, setReceived] = useState<ReceivedKudo[]>([]);
+  const [plant, setPlant] = useState<PlantData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetched = useRef(false);
@@ -92,14 +96,15 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
       const fresh = c.day === ymd(new Date());
       setMembers(c.members.map((m) => ({ ...m, kudos: fresh ? (m.kudos ?? []) : [] })));
       setReceived(fresh ? (c.received ?? []) : []);
+      setPlant(c.plant ?? null);
       setLoading(false);
     });
   }, [userId]);
 
   useEffect(() => {
     if (!userId || loading) return;
-    writeCache(userId, 'squads', { squads, selectedId: selected?.id ?? null, members, received, day: ymd(new Date()) } satisfies Cached);
-  }, [userId, loading, squads, selected?.id, members, received]);
+    writeCache(userId, 'squads', { squads, selectedId: selected?.id ?? null, members, received, plant, day: ymd(new Date()) } satisfies Cached);
+  }, [userId, loading, squads, selected?.id, members, received, plant]);
 
   const loadMembers = useCallback(async (squadId: string) => {
     const { from, to } = squadRange();
@@ -175,8 +180,15 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
       fetched.current = true;
       setSquads(list);
       const current = list.find((s) => s.id === selectedId) ?? list[0] ?? null;
-      const [mem, rec] = await Promise.all([current ? loadMembers(current.id) : Promise.resolve([]), loadReceived()]);
+      const [mem, rec, pl] = await Promise.all([
+        current ? loadMembers(current.id) : Promise.resolve([]),
+        loadReceived(),
+        current
+          ? supabase.rpc('squad_plant', { p_squad: current.id, p_today: ymd(new Date()) }).then(({ data, error }) => (error ? null : (data as PlantData | null)))
+          : Promise.resolve(null),
+      ]);
       setMembers(mem);
+      setPlant(pl);
       setReceived(rec);
       setError(null);
     } catch {
@@ -200,6 +212,7 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
   const select = useCallback((id: string) => {
     setSelectedId(id);
     setMembers([]);
+    setPlant(null);
     // refresh() re-runs via its selectedId dependency
   }, []);
 
@@ -258,8 +271,8 @@ function SquadsStore({ children, userId }: { children: ReactNode; userId: string
   );
 
   const value = useMemo(
-    () => ({ squads, selected, select, members, loading, error, refresh, create, join, leave, toggleKudo, received }),
-    [squads, selected, select, members, loading, error, refresh, create, join, leave, toggleKudo, received],
+    () => ({ squads, selected, select, members, loading, error, refresh, create, join, leave, toggleKudo, received, plant }),
+    [squads, selected, select, members, loading, error, refresh, create, join, leave, toggleKudo, received, plant],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
