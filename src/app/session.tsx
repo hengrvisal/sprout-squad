@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useCelebrate } from '@/components/Celebrate';
 import { Avatar, DetailScreen } from '@/components/Screen';
 import { Body, Button, Card, Chip, Dot, Eyebrow, Field } from '@/components/ui';
 import { useAuth } from '@/hooks/auth';
@@ -20,6 +21,7 @@ export default function SessionScreen() {
   const me = auth?.user.id;
   const { selected } = useSquads();
   const { add, today } = useEntries();
+  const celebrate = useCelebrate();
   const { live, joined, start, join, leave, end } = useSessions();
   const [minutes, setMinutes] = useState<SessionLength>(25);
   const [title, setTitle] = useState('');
@@ -80,6 +82,7 @@ export default function SessionScreen() {
     setText('');
     try {
       await add(t, cat);
+      celebrate({ title: 'Logged together!', sub: 'The squad can see it here. The plant felt that 🌿', emoji: ['🌿', '✨', '💚', '🌱'] });
     } catch {
       setText(t);
       setErr('Couldn’t save that. Check your connection and try again.');

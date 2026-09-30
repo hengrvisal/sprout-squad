@@ -8,12 +8,12 @@ import { border, fonts, useColors } from '@/theme/tokens';
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
-const LABELS: Record<string, string> = { index: 'Today', squad: 'Squad', me: 'Me' };
+const LABELS: Record<string, string> = { index: 'Today', focus: 'Focus', squad: 'Squad', me: 'Me' };
 
-const ICONS: Record<string, string> = { index: '✏️', squad: '🌱', me: '🙂' };
+const ICONS: Record<string, string> = { index: '✏️', focus: '⏱️', squad: '🌱', me: '🙂' };
 
 /**
- * Floating pill tab bar. A green highlight springs between tabs, the active tab grows a
+ * Floating pill tab bar (Today · Focus · Squad · Me; swipe between them too). A green highlight springs between tabs, the active tab grows a
  * little and shows its icon, and there's a light haptic tick on press.
  */
 function PillTabBar({ state, navigation }: TabBarProps) {
@@ -85,12 +85,12 @@ function PillTabBar({ state, navigation }: TabBarProps) {
               alignItems: 'center',
               justifyContent: 'center',
               flexDirection: 'row',
-              gap: 6,
+              gap: 4,
               opacity: pressed && !focused ? 0.6 : 1,
             })}
           >
-            {focused && <Text style={{ fontSize: 14 }}>{ICONS[route.name]}</Text>}
-            <Text style={{ fontFamily: fonts.displayBold, fontSize: focused ? 16 : 15, color: focused ? c.onGreen : c.screen, opacity: focused ? 1 : 0.7 }}>
+            {focused && <Text style={{ fontSize: 13 }}>{ICONS[route.name]}</Text>}
+            <Text numberOfLines={1} style={{ fontFamily: fonts.displayBold, fontSize: focused ? 15 : 14, color: focused ? c.onGreen : c.screen, opacity: focused ? 1 : 0.7 }}>
               {LABELS[route.name] ?? route.name}
             </Text>
           </Pressable>
@@ -106,9 +106,11 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <PillTabBar {...props} />}
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.screen } }}
+      // 'shift' slides pages sideways, so tapping or swiping tabs feels like one strip of pages
+      screenOptions={{ headerShown: false, animation: 'shift', sceneStyle: { backgroundColor: c.screen } }}
     >
       <Tabs.Screen name="index" />
+      <Tabs.Screen name="focus" />
       <Tabs.Screen name="squad" />
       <Tabs.Screen name="me" />
     </Tabs>

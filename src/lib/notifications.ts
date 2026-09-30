@@ -26,7 +26,11 @@ export async function setupNotifications() {
   if (!native || configured) return;
   configured = true;
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
+    // the focus timer celebrates in-app when it's open, so its banner would be a double ping
+    handleNotification: async (n) =>
+      n.request.identifier === 'focus-timer'
+        ? { shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false, shouldSetBadge: false }
+        : { shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false },
   });
   await Notifications.setNotificationCategoryAsync(LOG_CATEGORY, [
     {
@@ -106,4 +110,25 @@ export async function planEveningReminders(settings: ReminderSettings, loggedTod
 /** Ask a squad-related push to go out (fire and forget; the server double-checks everything). */
 export function notifyServer(body: { type: 'kudo' | 'note'; to: string } | { type: 'session'; session_id: string }) {
   supabase.functions.invoke('notify', { body }).catch(() => {});
+}
+
+const FOCUS_ID = 'focus-timer';
+
+/** Ping when the focus timer's phase ends (only if notifications are already allowed; never prompts). */
+export async function scheduleFocusAlarm(seconds: number, title: string, body: string): Promise<void> {
+  if (!native) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(FOCUS_ID).catch(() => {});
+    if (seconds < 1 || (await getPermission()) !== 'granted') return;
+    await Notifications.scheduleNotificationAsync({
+      identifier: FOCUS_ID,
+      content: { title, body, sound: true, data: { url: '/focus' } },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: Math.round(seconds) },
+    });
+  } catch {}
+}
+
+export async function cancelFocusAlarm(): Promise<void> {
+  if (!native) return;
+  await Notifications.cancelScheduledNotificationAsync(FOCUS_ID).catch(() => {});
 }

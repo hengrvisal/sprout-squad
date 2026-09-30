@@ -50,7 +50,7 @@ src/
     _layout.tsx        fonts, providers, auth guard
     sign-in.tsx        email → one-time code
     onboarding.tsx     intro slides
-    (tabs)/            Today · Squad · Me: one screen each, no scrolling needed
+    (tabs)/            Today · Focus · Squad · Me (swipe or tap between them)
     day.tsx, month.tsx                      Today details
     plant.tsx, friend/[id].tsx, squad-manage.tsx   Squad details
     profile.tsx, account.tsx                Me details
@@ -84,6 +84,8 @@ RLS: you write only your own rows. You can read your squadmates' profiles and en
 - [x] **Release prep**: app icon, splash, bundle id `app.sproutsquad`, EAS build profiles, TestFlight guide (`docs/TESTFLIGHT.md`)
 - [x] **Website**: landing page with beta waitlist, privacy, support and delete-account pages (`website/`, see `docs/WEBSITE.md`); in-app account deletion
 - [x] **Squad plant (slice 1)**: shared plant with 7 stages, growth + health computed server-side, weekly rotating squad goal with a 20% growth spurt, anti-spam and no-backdating rules
+- [x] **Feel pass**: rewarding log composer (daily prompt, category palette, celebration burst + haptics), win stickers, chunky grid with a pulsing today cell, garden hero for the squad plant, swipe between tabs
+- [x] **Focus tab**: pomodoro timer (focus / short / long, presets, auto-start, notification when a phase ends, survives closing the app), log the round as a win
 - [ ] **Squad plant (slice 2)**: seasons + greenhouse, collectibles for weekly goals, squad-voted goals, 'watering' moment when you log
 - [ ] **Phase 3b · Dev build + push**: EAS development build, push for kudos received and a gentle evening reminder
 - [ ] **Phase 4 · iOS widget**: today prompt → your grid once you've logged, cycling through friends' grids

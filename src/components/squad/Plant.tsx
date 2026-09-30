@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { MEMBER_COLORS, plantModel } from '@/lib/plant';
 import { useColors } from '@/theme/tokens';
@@ -29,16 +29,18 @@ export function Plant({
     () => plantModel(stage, progress, health, drooping, members, seedKey),
     [stage, progress, health, drooping, members, seedKey],
   );
-  const leafFill = drooping ? 'url(#leafDry)' : 'url(#leaf)';
+  // unique per instance: two plants on screen (or a hidden tab) must not share gradient ids
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const leafFill = drooping ? `url(#leafDry${uid})` : `url(#leaf${uid})`;
 
   return (
     <Svg width={size} height={size * 1.1} viewBox="0 0 200 220" accessibilityLabel="Squad plant">
       <Defs>
-        <LinearGradient id="leaf" x1="0" y1="0" x2="1" y2="0">
+        <LinearGradient id={`leaf${uid}`} x1="0" y1="0" x2="1" y2="0">
           <Stop offset="0" stopColor="#3DBB57" />
           <Stop offset="1" stopColor="#9BE07A" />
         </LinearGradient>
-        <LinearGradient id="leafDry" x1="0" y1="0" x2="1" y2="0">
+        <LinearGradient id={`leafDry${uid}`} x1="0" y1="0" x2="1" y2="0">
           <Stop offset="0" stopColor="#8FA86A" />
           <Stop offset="1" stopColor="#C9D49A" />
         </LinearGradient>

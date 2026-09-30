@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import { DayCounts, MONTHS, WEEKDAYS, monthCells, monthStats, plural } from '@/lib/dates';
 import { fonts, useColors } from '@/theme/tokens';
 import { Body, H, Mono } from './ui';
@@ -40,7 +41,7 @@ export function MonthGrid({
         <View key={ri} style={{ flexDirection: 'row', gap }}>
           {row.map((cell, ci) => {
             if (cell.kind === 'pad') return <View key={ci} style={{ flex: 1, aspectRatio: 1 }} />;
-            const r = mini ? 3 : 9;
+            const r = mini ? 5 : 10;
             if (cell.isFuture) {
               return (
                 <View
@@ -51,32 +52,80 @@ export function MonthGrid({
                 </View>
               );
             }
-            return (
-              <View
-                key={ci}
-                accessibilityLabel={`${cell.key}: ${plural(cell.count, 'thing', 'things')} done`}
-                style={{
-                  flex: 1,
-                  aspectRatio: 1,
-                  borderRadius: r,
-                  backgroundColor: c.grid[cell.level],
-                  padding: mini ? 0 : 4,
-                  borderWidth: cell.isToday ? 2.5 : 0,
-                  borderColor: c.ink,
-                }}
-              >
-                {!mini && (
-                  <Text style={{ fontFamily: fonts.mono, fontSize: 10, color: c.gridText[cell.level], opacity: cell.level ? 1 : 0.8 }}>
-                    {cell.day}
-                  </Text>
-                )}
-              </View>
-            );
+            return <DayCell key={ci} cell={cell} mini={mini} r={r} />;
           })}
         </View>
       ))}
     </View>
   );
+}
+
+type Day = Extract<ReturnType<typeof monthCells>[number], { kind: 'day' }>;
+
+/**
+ * One day. Green days are chunky (ink edge + a little shine). Today pulses gently while
+ * it's still empty, as an invitation, and pops each time its count goes up.
+ */
+function DayCell({ cell, mini, r }: { cell: Day; mini: boolean; r: number }) {
+  const c = useColors();
+  const lit = cell.level > 0;
+  const body = (
+    <View
+      accessibilityLabel={`${cell.key}: ${plural(cell.count, 'thing', 'things')} done${cell.isToday ? ', today' : ''}`}
+      style={{
+        flex: 1,
+        aspectRatio: 1,
+        borderRadius: r,
+        backgroundColor: c.grid[cell.level],
+        padding: mini ? 0 : 4,
+        borderWidth: cell.isToday ? 2.5 : lit ? (mini ? 1.5 : 2) : 0,
+        borderColor: cell.isToday && !lit ? c.tang : c.line,
+        overflow: 'hidden',
+      }}
+    >
+      {lit && (
+        <View
+          style={{
+            position: 'absolute',
+            top: mini ? 2 : 4,
+            left: mini ? 2 : 4,
+            width: mini ? 4 : 7,
+            height: mini ? 4 : 7,
+            borderRadius: 4,
+            backgroundColor: '#FFFFFF',
+            opacity: 0.45,
+          }}
+        />
+      )}
+      {!mini && (
+        <Text style={{ fontFamily: fonts.mono, fontSize: 10, color: c.gridText[cell.level], opacity: cell.level ? 1 : 0.8, marginLeft: lit ? 8 : 0 }}>
+          {cell.day}
+        </Text>
+      )}
+      {cell.level === 4 && !mini && <Text style={{ position: 'absolute', right: 3, bottom: 1, fontSize: 10 }}>✨</Text>}
+    </View>
+  );
+  if (!cell.isToday) return body;
+  return <TodayCell key={cell.count} empty={!lit}>{body}</TodayCell>;
+}
+
+function TodayCell({ empty, children }: { empty: boolean; children: React.ReactNode }) {
+  const [v] = useState(() => new Animated.Value(empty ? 1 : 1.35));
+  useEffect(() => {
+    if (!empty) {
+      Animated.spring(v, { toValue: 1, useNativeDriver: true, speed: 10, bounciness: 14 }).start();
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1.12, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [empty, v]);
+  return <Animated.View style={{ flex: 1, zIndex: 1, transform: [{ scale: v }] }}>{children}</Animated.View>;
 }
 
 export function Legend() {
@@ -85,7 +134,7 @@ export function Legend() {
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
       <Text style={{ fontFamily: fonts.body, fontSize: 11, color: c.ink3 }}>less</Text>
       {c.grid.map((g) => (
-        <View key={g} style={{ width: 11, height: 11, borderRadius: 3, backgroundColor: g }} />
+        <View key={g} style={{ width: 11, height: 11, borderRadius: 3, backgroundColor: g, borderWidth: g === c.grid[0] ? 0 : 1.2, borderColor: c.line }} />
       ))}
       <Text style={{ fontFamily: fonts.body, fontSize: 11, color: c.ink3 }}>more</Text>
     </View>

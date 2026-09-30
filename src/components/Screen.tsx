@@ -1,8 +1,58 @@
-import { router } from 'expo-router';
-import { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { router, useNavigation } from 'expo-router';
+import { ReactNode, useEffect, useRef, useState } from 'react';
+import { Animated, KeyboardAvoidingView, PanResponder, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, useColors } from '@/theme/tokens';
+
+type TabNav = { getState: () => { index: number; routes: { name: string }[] }; navigate: (name: string) => void };
+
+/**
+ * Swipe left/right to move between tabs. The page follows your finger a little (with a
+ * rubber band at the ends), then the tab bar's shift animation takes over.
+ */
+function useTabSwipe() {
+  const navigation = useNavigation() as unknown as TabNav;
+  const nav = useRef(navigation);
+  useEffect(() => {
+    nav.current = navigation;
+  }, [navigation]);
+  const [drag] = useState(() => new Animated.Value(0));
+  // the ref is only read inside gesture callbacks, never during render
+  // eslint-disable-next-line react-hooks/refs
+  const [pan] = useState(() => {
+    const neighbour = (dir: 1 | -1) => {
+      try {
+        const st = nav.current.getState();
+        return st.routes[st.index + dir]?.name ?? null;
+      } catch {
+        return null;
+      }
+    };
+    const settle = () => Animated.spring(drag, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 6 }).start();
+    return PanResponder.create({
+      // only claim clearly horizontal drags, so vertical scrolling is untouched
+      onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+      onPanResponderMove: (_, g) => {
+        const dir = g.dx < 0 ? 1 : -1;
+        const free = neighbour(dir) ? 0.35 : 0.12;
+        drag.setValue(g.dx * free);
+      },
+      onPanResponderRelease: (_, g) => {
+        const dir = g.dx < 0 ? 1 : -1;
+        const target = neighbour(dir);
+        if (target && (Math.abs(g.dx) > 70 || Math.abs(g.vx) > 0.45)) {
+          Haptics.selectionAsync().catch(() => {});
+          nav.current.navigate(target);
+        }
+        settle();
+      },
+      onPanResponderTerminate: settle,
+      onPanResponderTerminationRequest: () => true,
+    });
+  });
+  return { drag, handlers: pan.panHandlers };
+}
 
 /**
  * A tab screen: big title, optional subtitle and right-hand action, then content.
@@ -28,8 +78,10 @@ export function Screen({
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const swipe = useTabSwipe();
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.screen }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Animated.View {...swipe.handlers} style={{ flex: 1, transform: [{ translateX: swipe.drag }] }}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={c.ink} /> : undefined}
@@ -46,6 +98,7 @@ export function Screen({
         </View>
         {children}
       </ScrollView>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }

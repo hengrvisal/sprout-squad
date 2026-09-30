@@ -6,7 +6,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { CelebrateProvider } from '@/components/Celebrate';
 import { AuthProvider, useAuth } from '@/hooks/auth';
+import { FocusProvider } from '@/hooks/focus';
 import { EntriesProvider } from '@/hooks/entries';
 import { NotificationsProvider } from '@/hooks/notifications';
 import { SessionsProvider } from '@/hooks/sessions';
@@ -40,6 +42,7 @@ function RootStack() {
         <Stack.Screen name="search" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="session" />
+        <Stack.Screen name="focus-settings" />
         <Stack.Screen name="month" />
         <Stack.Screen name="plant" />
         <Stack.Screen name="friend/[id]" />
@@ -77,8 +80,12 @@ export default function RootLayout() {
             <SquadsProvider>
               <SessionsProvider>
                 <NotificationsProvider>
-                  <StatusBar style="auto" />
-                  <RootStack />
+                  <CelebrateProvider>
+                    <FocusProvider>
+                      <StatusBar style="auto" />
+                      <RootStack />
+                    </FocusProvider>
+                  </CelebrateProvider>
                 </NotificationsProvider>
               </SessionsProvider>
             </SquadsProvider>
