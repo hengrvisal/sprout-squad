@@ -415,7 +415,13 @@
 
   // ---------- vines ----------
   const NS = 'http://www.w3.org/2000/svg';
-  const LEAF = 'M0,0 C 18,-26 62,-34 96,-6 C 70,26 26,24 0,0 Z';
+  // a pothos-like leaf, ~108 units long, pointing along +x; drawn in layers for depth
+  const LEAF = 'M0,0 C 10,-18 40,-32 72,-28 C 90,-25 102,-14 108,-3 C 98,8 80,20 58,24 C 34,28 10,18 0,0 Z';
+  const LEAF_LO = 'M2,-1 C 30,-8 70,-10 108,-3 C 98,8 80,20 58,24 C 34,28 10,18 0,0 Z'; // shaded half, below the midrib
+  const MIDRIB = 'M2,-1 C 30,-8 70,-10 106,-3';
+  const VEINS = 'M20,-5 C 28,-14 36,-20 44,-24 M40,-8 C 50,-17 58,-22 68,-25 M60,-9 C 70,-16 78,-19 88,-19 ' +
+    'M20,-5 C 30,4 38,10 44,16 M40,-8 C 52,2 60,10 66,18 M60,-9 C 72,0 80,6 88,10';
+  const SHINE = 'M14,-8 C 34,-22 60,-27 86,-21 C 64,-17 40,-13 14,-8 Z';
   const BUDS = ['var(--g1)', 'var(--g2)', 'var(--g3)', 'var(--g4)'];
   let gradN = 0;
   const el = (tag, attrs = {}, parent) => {
@@ -425,41 +431,89 @@
     return n;
   };
 
+  /** A tendril: a short reach out, then a tightening curl. */
+  function tendrilPath(L, R, turns) {
+    let d = `M0,0 Q ${(L * 0.5).toFixed(1)},${(-R * 0.25).toFixed(1)} ${L},0`;
+    const N = 36;
+    for (let i = 1; i <= N; i++) {
+      const th = (i / N) * turns * Math.PI * 2;
+      const rr = R * (1 - (0.78 * i) / N);
+      d += ` L${(L + rr * Math.sin(th)).toFixed(1)},${(-R + rr * Math.cos(th)).toFixed(1)}`;
+    }
+    return d;
+  }
+
   function buildVines(svg) {
     const paths = JSON.parse(svg.dataset.vine);
-    const id = `leafgrad${gradN++}`;
+    const n = gradN++;
     const defs = el('defs', {}, svg);
-    const g = el('linearGradient', { id, x1: '0', y1: '0', x2: '1', y2: '0' }, defs);
-    el('stop', { offset: '0', 'stop-color': '#3DBB57' }, g);
-    el('stop', { offset: '1', 'stop-color': '#A6E57F' }, g);
+    // three leaf tones, mixed so the foliage isn't one flat green
+    const TONES = [
+      ['#1f7a35', '#3fae52', '#8fd873'], // mature
+      ['#155f2a', '#2c9044', '#66be5e'], // deep
+      ['#3c9b40', '#78c957', '#c6ee8f'], // young
+    ];
+    TONES.forEach((stops, k) => {
+      const g = el('linearGradient', { id: `leaf${n}-${k}`, x1: '0', y1: '0', x2: '1', y2: '0.25' }, defs);
+      stops.forEach((c, j) => el('stop', { offset: String(j / 2), 'stop-color': c }, g));
+    });
     const r = rng(paths.join('').length);
     const DRAW = 2.4;
 
     paths.forEach((d, pi) => {
       const main = pi === 0;
       const grp = el('g', {}, svg);
-      const shadow = el('path', { d, class: 'stem-shadow' }, grp);
-      const stem = el('path', { d, class: `stem${main ? '' : ' thin'}` }, grp);
+      // the stem: soft shadow, dark edge, body, and a light line down one side so it reads as round
+      const layers = ['stem-shadow', 'stem-edge', 'stem', 'stem-light'].map((c) => el('path', { d, class: `${c}${main ? '' : ' thin'}` }, grp));
+      const stem = layers[2];
       const len = stem.getTotalLength();
       const dur = DRAW * (main ? 1 : 0.8);
-      [shadow, stem].forEach((p) => { p.style.setProperty('--len', len); p.style.setProperty('--dur', `${dur}s`); });
       const start = pi * 0.25;
-      if (start) [shadow, stem].forEach((p) => (p.style.animationDelay = `${start}s`));
+      layers.forEach((p) => {
+        p.style.setProperty('--len', len);
+        p.style.setProperty('--dur', `${dur}s`);
+        if (start) p.style.animationDelay = `${start}s`;
+      });
+      // lenticels: tiny darker dots along the bark, fading in once the stem has grown
+      const dots = el('path', { d, class: `stem-dots${main ? '' : ' thin'}` }, grp);
+      dots.style.animationDelay = `${(start + dur * 0.9).toFixed(2)}s`;
 
-      // leaves along the stem, alternating sides, bigger near the edge
+      // leaves along the stem, alternating sides, bigger near the edge; young and pale near the tip
       const step = main ? 58 : 50;
       let side = 1;
-      for (let s = 50; s < len - 24; s += step + r() * 18) {
+      let k = 0;
+      for (let s = 50; s < len - 24; s += step + r() * 18, k++) {
         const p = stem.getPointAtLength(s);
         const q = stem.getPointAtLength(Math.min(len, s + 2));
         const ang = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI;
         const t = s / len;
-        const size = (main ? 0.95 : 0.7) * (1.15 - 0.55 * t) * (0.85 + r() * 0.3);
+        const size = (main ? 0.92 : 0.68) * (1.15 - 0.55 * t) * (0.85 + r() * 0.3);
+        const delay = `${(start + dur * t * 0.9 + 0.1).toFixed(2)}s`;
+        const tone = t > 0.78 ? 2 : r() < 0.45 ? 1 : 0;
+
+        // a small node where the leaf joins
+        const node = el('ellipse', { cx: p.x.toFixed(1), cy: p.y.toFixed(1), rx: main ? 4.2 : 3.2, ry: main ? 3 : 2.4, transform: `rotate(${ang.toFixed(1)} ${p.x.toFixed(1)} ${p.y.toFixed(1)})`, class: 'node' }, grp);
+        node.style.animationDelay = delay;
+
         const at = el('g', { transform: `translate(${p.x.toFixed(1)},${p.y.toFixed(1)}) rotate(${(ang + side * (48 + r() * 18)).toFixed(1)})` }, grp);
         const grow = el('g', { class: 'grow' }, at);
-        grow.style.setProperty('--delay', `${(start + dur * t * 0.9 + 0.1).toFixed(2)}s`);
-        el('path', { d: LEAF, class: 'leaf', fill: `url(#${id})`, transform: `scale(${size.toFixed(2)})` }, grow);
-        el('path', { d: 'M4,-2 C 30,-10 58,-12 84,-6', class: 'rib', transform: `scale(${size.toFixed(2)})` }, grow);
+        grow.style.setProperty('--delay', delay);
+        el('path', { d: `M0,0 Q ${(6 * size).toFixed(1)},${(-1.5 * size).toFixed(1)} ${(12 * size).toFixed(1)},0`, class: 'petiole' }, grow);
+        const leaf = el('g', { transform: `translate(${(11 * size).toFixed(1)},0) scale(${size.toFixed(2)}) rotate(${(r() * 10 - 5).toFixed(1)})` }, grow);
+        el('path', { d: LEAF, class: 'leaf-shadow', transform: 'translate(2,5)' }, leaf);
+        el('path', { d: LEAF, class: 'leaf', fill: `url(#leaf${n}-${tone})` }, leaf);
+        el('path', { d: LEAF_LO, class: 'leaf-lo' }, leaf);
+        el('path', { d: VEINS, class: 'vein' }, leaf);
+        el('path', { d: MIDRIB, class: 'midrib' }, leaf);
+        el('path', { d: SHINE, class: 'leaf-shine' }, leaf);
+
+        // every third node, a tendril curls off the other side
+        if (k % 3 === 1) {
+          const tg = el('g', { transform: `translate(${p.x.toFixed(1)},${p.y.toFixed(1)}) rotate(${(ang - side * (35 + r() * 25)).toFixed(1)}) scale(${(main ? 1 : 0.75) * (side > 0 ? 1 : -1)} ${side > 0 ? 1 : -1})` }, grp);
+          const tp = el('path', { d: tendrilPath(18 + r() * 12, 6 + r() * 3, 1.3 + r() * 0.5), class: 'tendril' }, tg);
+          tp.style.setProperty('--len', tp.getTotalLength().toFixed(0));
+          tp.style.setProperty('--delay', delay);
+        }
         side = -side;
       }
 
@@ -805,9 +859,11 @@
       el.style.setProperty('--m', color);
       el.innerHTML = `<span class="av">${emoji}</span>${name}`;
       peopleEl.appendChild(el);
+      // both lines always exist (stacked), so switching never changes the height
       const bonus = people.size >= 2;
-      statusEl.textContent = bonus ? '🌿 Plant bonus is on' : 'Bonus starts when a second person joins';
-      statusEl.classList.toggle('on', bonus);
+      statusEl.classList.toggle('bonus', bonus);
+      $('.off', statusEl).setAttribute('aria-hidden', String(bonus)); // screen readers hear only the visible line
+      $('.on', statusEl).setAttribute('aria-hidden', String(!bonus));
     };
     const addWin = (who, text) => {
       const el = document.createElement('div');
@@ -816,12 +872,14 @@
       el.querySelector('b').textContent = who;
       el.querySelector('span').textContent = text;
       feedEl.prepend(el);
-      while (feedEl.children.length > 4) feedEl.lastElementChild.remove();
+      while (feedEl.children.length > 6) feedEl.lastElementChild.remove(); // the window shows 4 (6 on desktop)
     };
     const fmt = (t) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
     joinBtn.addEventListener('click', () => {
       addPerson('🐸', 'You', '#7CC4FF');
-      joinBtn.hidden = true;
+      // stays in place (just changes), so nothing below it moves
+      joinBtn.textContent = 'You’re in ✓';
+      joinBtn.disabled = true;
       for (let k = 0; k < 4; k++) setTimeout(() => burstAt(joinBtn.parentElement.querySelector('.sd-person:last-child'), '🌿'), k * 120);
     });
     // a couple of wins already in, so it never looks empty
@@ -911,11 +969,10 @@
       el.querySelector('b').textContent = name;
       el.querySelector('p').textContent = text;
       notesEl.appendChild(el);
-      const live = $$('.nd-note:not(.out)', notesEl);
-      if (live.length > 2) {
-        live[0].classList.add('out');
-        setTimeout(() => live[0].remove(), 400);
-      }
+      // the stage has a fixed height and anchors to the bottom: new notes grow in from below,
+      // older ones slide up and out of view, and the tile itself never changes size
+      const all = $$('.nd-note', notesEl);
+      if (all.length > 3) all[0].remove();
     };
     whenVisible(tile, async () => {
       if (reduce) return NOTES.slice(0, 2).forEach(show);
