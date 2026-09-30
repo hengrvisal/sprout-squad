@@ -3,7 +3,8 @@ import { router, useNavigation } from 'expo-router';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, PanResponder, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts, useColors } from '@/theme/tokens';
+import { Backdrop } from '@/components/Backdrop';
+import { fonts, GradientName, useColors } from '@/theme/tokens';
 
 type TabNav = { getState: () => { index: number; routes: { name: string }[] }; navigate: (name: string) => void };
 
@@ -66,7 +67,13 @@ export function Screen({
   children,
   refreshing,
   onRefresh,
+  gradient = 'today',
+  scroll = true,
 }: {
+  /** Which page gradient to paint behind the content. */
+  gradient?: GradientName;
+  /** Pages built to fit one screen can turn scrolling off. */
+  scroll?: boolean;
   title?: string;
   subtitle?: string;
   right?: ReactNode;
@@ -81,23 +88,23 @@ export function Screen({
   const swipe = useTabSwipe();
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.screen }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Backdrop name={gradient} />
       <Animated.View {...swipe.handlers} style={{ flex: 1, transform: [{ translateX: swipe.drag }] }}>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={c.ink} /> : undefined}
-        contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 18, paddingBottom: insets.bottom + 90, gap: 18 }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, minHeight: 56 }}>
-          <View style={{ flex: 1 }}>
-            {subtitle ? (
-              <Text style={{ fontFamily: fonts.bodyBold, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: c.ink3 }}>{subtitle}</Text>
-            ) : null}
-            {titleNode ?? <Text style={{ fontFamily: fonts.display, fontSize: 32, color: c.ink, letterSpacing: -0.8 }}>{title}</Text>}
+        <ScrollView
+          scrollEnabled={scroll}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={c.ink} /> : undefined}
+          contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 96, gap: 20 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 52 }}>
+            <View style={{ flex: 1 }}>
+              {subtitle ? <Text style={{ fontFamily: fonts.bodySemi, fontSize: 14, color: c.ink3 }}>{subtitle}</Text> : null}
+              {titleNode ?? <Text style={{ fontFamily: fonts.display, fontSize: 30, color: c.ink, letterSpacing: -0.8 }}>{title}</Text>}
+            </View>
+            {right}
           </View>
-          {right}
-        </View>
-        {children}
-      </ScrollView>
+          {children}
+        </ScrollView>
       </Animated.View>
     </KeyboardAvoidingView>
   );
@@ -109,6 +116,7 @@ export function DetailScreen({ title, children, right }: { title: string; childr
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.screen }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Backdrop name="detail" />
       <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 12, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         <Pressable
           accessibilityRole="button"
@@ -117,7 +125,7 @@ export function DetailScreen({ title, children, right }: { title: string; childr
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Text style={{ fontFamily: fonts.mono, fontSize: 26, color: c.ink }}>‹</Text>
+          <Text style={{ fontFamily: fonts.bodySemi, fontSize: 30, lineHeight: 32, color: c.ink }}>‹</Text>
         </Pressable>
         <Text style={{ flex: 1, fontFamily: fonts.displayBold, fontSize: 20, color: c.ink }} numberOfLines={1}>
           {title}
@@ -126,7 +134,7 @@ export function DetailScreen({ title, children, right }: { title: string; childr
       </View>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 6, paddingBottom: insets.bottom + 40, gap: 16 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: insets.bottom + 40, gap: 16 }}
       >
         {children}
       </ScrollView>
@@ -142,8 +150,8 @@ export function Avatar({ emoji, size = 34 }: { emoji?: string; size?: number }) 
         width: size,
         height: size,
         borderRadius: size,
-        backgroundColor: c.lilac,
-        borderWidth: 2.5,
+        backgroundColor: c.glassStrong,
+        borderWidth: 1,
         borderColor: c.line,
         alignItems: 'center',
         justifyContent: 'center',

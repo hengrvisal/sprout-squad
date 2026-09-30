@@ -3,50 +3,49 @@ import * as Haptics from 'expo-haptics';
 import { ComponentProps, useEffect, useState } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Icon, IconName } from '@/components/Icon';
 import { useNotificationResponses } from '@/hooks/notifications';
-import { border, fonts, useColors } from '@/theme/tokens';
+import { fonts, softShadow, useColors } from '@/theme/tokens';
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
-const LABELS: Record<string, string> = { index: 'Today', focus: 'Focus', squad: 'Squad', me: 'Me' };
-
-const ICONS: Record<string, string> = { index: '✏️', focus: '⏱️', squad: '🌱', me: '🙂' };
+const LABELS: Record<string, string> = { index: 'Today', month: 'Month', focus: 'Focus', squad: 'Squad', me: 'Me' };
 
 /**
- * Floating pill tab bar (Today · Focus · Squad · Me; swipe between them too). A green highlight springs between tabs, the active tab grows a
- * little and shows its icon, and there's a light haptic tick on press.
+ * Frosted floating tab bar: five icons, a soft highlight glides to the active one.
+ * Swipe left/right on any page to move between them too.
  */
-function PillTabBar({ state, navigation }: TabBarProps) {
+function TabBar({ state, navigation }: TabBarProps) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const [width, setWidth] = useState(0);
   const [x] = useState(() => new Animated.Value(state.index));
   const PAD = 6;
-  const GAP = 6;
   const n = state.routes.length;
-  const tabW = width ? (width - PAD * 2 - GAP * (n - 1)) / n : 0;
+  const tabW = width ? (width - PAD * 2) / n : 0;
 
   useEffect(() => {
-    Animated.spring(x, { toValue: state.index, useNativeDriver: true, speed: 16, bounciness: 9 }).start();
+    Animated.spring(x, { toValue: state.index, useNativeDriver: true, speed: 18, bounciness: 6 }).start();
   }, [state.index, x]);
 
   return (
     <View
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      style={{
-        position: 'absolute',
-        left: 14,
-        right: 14,
-        // sit close to the bottom edge, just clear of the home indicator
-        bottom: Math.max(insets.bottom - 12, 10),
-        flexDirection: 'row',
-        gap: GAP,
-        padding: PAD,
-        backgroundColor: c.ink,
-        borderRadius: 26,
-        borderWidth: border,
-        borderColor: c.line,
-      }}
+      style={[
+        {
+          position: 'absolute',
+          left: 20,
+          right: 20,
+          bottom: Math.max(insets.bottom - 8, 12),
+          flexDirection: 'row',
+          padding: PAD,
+          backgroundColor: c.glassStrong,
+          borderRadius: 28,
+          borderWidth: 1,
+          borderColor: c.line,
+        },
+        softShadow(c, 1.6),
+      ]}
     >
       {tabW > 0 && (
         <Animated.View
@@ -57,20 +56,21 @@ function PillTabBar({ state, navigation }: TabBarProps) {
             bottom: PAD,
             left: PAD,
             width: tabW,
-            borderRadius: 20,
-            backgroundColor: c.grid[3],
-            transform: [{ translateX: x.interpolate({ inputRange: [0, Math.max(1, n - 1)], outputRange: [0, (tabW + GAP) * Math.max(1, n - 1)] }) }],
+            borderRadius: 22,
+            backgroundColor: c.ink,
+            transform: [{ translateX: x.interpolate({ inputRange: [0, n - 1], outputRange: [0, tabW * (n - 1)] }) }],
           }}
         />
       )}
       {state.routes.map((route, i) => {
         const focused = state.index === i;
+        const label = LABELS[route.name] ?? route.name;
         return (
           <Pressable
             key={route.key}
             accessibilityRole="tab"
             accessibilityState={{ selected: focused }}
-            accessibilityLabel={LABELS[route.name] ?? route.name}
+            accessibilityLabel={label}
             onPress={() => {
               const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
               if (!focused && !e.defaultPrevented) {
@@ -78,21 +78,10 @@ function PillTabBar({ state, navigation }: TabBarProps) {
                 navigation.navigate(route.name);
               }
             }}
-            style={({ pressed }) => ({
-              flex: 1,
-              paddingVertical: 12,
-              borderRadius: 20,
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'row',
-              gap: 4,
-              opacity: pressed && !focused ? 0.6 : 1,
-            })}
+            style={{ flex: 1, height: 50, alignItems: 'center', justifyContent: 'center', gap: 2 }}
           >
-            {focused && <Text style={{ fontSize: 13 }}>{ICONS[route.name]}</Text>}
-            <Text numberOfLines={1} style={{ fontFamily: fonts.displayBold, fontSize: focused ? 15 : 14, color: focused ? c.onGreen : c.screen, opacity: focused ? 1 : 0.7 }}>
-              {LABELS[route.name] ?? route.name}
-            </Text>
+            <Icon name={route.name === 'index' ? 'today' : (route.name as IconName)} size={21} color={focused ? c.screen : c.ink3} />
+            <Text style={{ fontFamily: fonts.bodyBold, fontSize: 10.5, color: focused ? c.screen : c.ink3 }}>{label}</Text>
           </Pressable>
         );
       })}
@@ -105,11 +94,12 @@ export default function TabsLayout() {
   const c = useColors();
   return (
     <Tabs
-      tabBar={(props) => <PillTabBar {...props} />}
+      tabBar={(props) => <TabBar {...props} />}
       // 'shift' slides pages sideways, so tapping or swiping tabs feels like one strip of pages
       screenOptions={{ headerShown: false, animation: 'shift', sceneStyle: { backgroundColor: c.screen } }}
     >
       <Tabs.Screen name="index" />
+      <Tabs.Screen name="month" />
       <Tabs.Screen name="focus" />
       <Tabs.Screen name="squad" />
       <Tabs.Screen name="me" />

@@ -36,18 +36,16 @@ export function CategoryPicker({
               onPress={() => pick(k.key)}
               hitSlop={4}
               style={{
-                width: 42,
-                height: 42,
-                borderRadius: 21,
-                borderWidth: 2,
-                borderColor: on ? c.line : 'transparent',
-                backgroundColor: on ? k.color : c.soft,
+                width: 46,
+                height: 46,
+                borderRadius: 23,
+                backgroundColor: on ? k.color : c.glass,
                 alignItems: 'center',
                 justifyContent: 'center',
-                transform: [{ scale: on ? 1.08 : 1 }],
+                transform: [{ scale: on ? 1.1 : 1 }],
               }}
             >
-              <Text style={{ fontSize: 19, opacity: on ? 1 : 0.75 }}>{k.emoji}</Text>
+              <Text style={{ fontSize: 20, opacity: on ? 1 : 0.6 }}>{k.emoji}</Text>
             </Pressable>
           );
         })}
@@ -75,9 +73,7 @@ export function CategoryPicker({
               gap: 6,
               paddingVertical: 8,
               borderRadius: radius.pill,
-              borderWidth: 2,
-              borderColor: on ? c.line : c.soft,
-              backgroundColor: on ? k.color : c.card,
+              backgroundColor: on ? k.color : c.glass,
               opacity: pressed ? 0.7 : 1,
             })}
           >

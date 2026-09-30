@@ -1,17 +1,16 @@
 import { ReactNode } from 'react';
-import { Pressable, PressableProps, StyleProp, StyleSheet, Text, TextInput, TextInputProps, TextProps, View, ViewStyle } from 'react-native';
-import { border, fonts, radius, shadowOffset, useColors } from '@/theme/tokens';
+import { Pressable, PressableProps, StyleProp, Text, TextInput, TextInputProps, TextProps, View, ViewStyle } from 'react-native';
+import { fonts, radius, softShadow, useColors } from '@/theme/tokens';
 
 /**
- * A chunky, hard-shadowed block. The shadow is a second View offset behind the
- * face, so it looks identical on iOS, Android and web.
+ * A soft surface: frosted card, rounded, gentle diffuse shadow, hairline edge.
+ * (Name kept from the old chunky look so every screen picks up the new style.)
  */
 export function Chunky({
   children,
   style,
   bg,
   r = radius.lg,
-  offset = shadowOffset,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -21,18 +20,15 @@ export function Chunky({
 }) {
   const c = useColors();
   return (
-    <View style={{ paddingRight: offset, paddingBottom: offset }}>
-      <View style={[StyleSheet.absoluteFill, { top: offset, left: offset, backgroundColor: c.line, borderRadius: r }]} />
-      <View style={[{ backgroundColor: bg ?? c.card, borderColor: c.line, borderWidth: border, borderRadius: r }, style]}>
-        {children}
-      </View>
+    <View style={[{ backgroundColor: bg ?? c.glass, borderRadius: r, borderWidth: 1, borderColor: c.line }, softShadow(c), style]}>
+      {children}
     </View>
   );
 }
 
 export function Card({ children, style, bg }: { children: ReactNode; style?: StyleProp<ViewStyle>; bg?: string }) {
   return (
-    <Chunky bg={bg} style={[{ padding: 16, gap: 12 }, style]}>
+    <Chunky bg={bg} style={[{ padding: 18, gap: 12 }, style]}>
       {children}
     </Chunky>
   );
@@ -86,39 +82,28 @@ export function Button({
   ...rest
 }: Omit<PressableProps, 'style'> & { label: string; variant?: 'primary' | 'ghost'; style?: StyleProp<ViewStyle> }) {
   const c = useColors();
-  const bg = variant === 'primary' ? c.grid[3] : c.card;
-  const fg = variant === 'primary' ? c.onGreen : c.ink;
+  const primary = variant === 'primary';
   return (
     <Pressable
       {...rest}
       accessibilityRole="button"
       onPress={onPress}
       disabled={disabled}
-      style={[{ opacity: disabled ? 0.5 : 1 }, style]}
+      style={({ pressed }) => [
+        {
+          backgroundColor: primary ? c.accent : c.glass,
+          borderRadius: radius.pill,
+          paddingVertical: 12,
+          paddingHorizontal: 20,
+          alignItems: 'center',
+          opacity: disabled ? 0.4 : pressed ? 0.75 : 1,
+          borderWidth: primary ? 0 : 1,
+          borderColor: c.line,
+        },
+        style,
+      ]}
     >
-      {({ pressed }) => (
-        <View style={{ paddingRight: shadowOffset, paddingBottom: shadowOffset }}>
-          {!pressed && (
-            <View
-              style={[StyleSheet.absoluteFill, { top: shadowOffset, left: shadowOffset, backgroundColor: c.line, borderRadius: radius.md }]}
-            />
-          )}
-          <View
-            style={{
-              backgroundColor: bg,
-              borderColor: c.line,
-              borderWidth: border,
-              borderRadius: radius.md,
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              alignItems: 'center',
-              transform: pressed ? [{ translateX: shadowOffset }, { translateY: shadowOffset }] : [],
-            }}
-          >
-            <Text style={{ fontFamily: fonts.display, fontSize: 16, color: fg }}>{label}</Text>
-          </View>
-        </View>
-      )}
+      <Text style={{ fontFamily: fonts.bodyBold, fontSize: 15.5, color: primary ? '#FFFFFF' : c.ink }}>{label}</Text>
     </Pressable>
   );
 }
@@ -144,12 +129,10 @@ export function Chip({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        borderWidth: 2,
-        borderColor: c.line,
         borderRadius: radius.pill,
-        paddingVertical: 4,
-        paddingHorizontal: 10,
-        backgroundColor: selected ? c.ink : c.card,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        backgroundColor: selected ? c.ink : c.glass,
       }}
     >
       {dot && <Dot color={dot} />}
@@ -159,9 +142,8 @@ export function Chip({
 }
 
 export function Dot({ color, size = 10 }: { color: string; size?: number }) {
-  const c = useColors();
   return (
-    <View style={{ width: size, height: size, borderRadius: size, backgroundColor: color, borderWidth: 1, borderColor: c.line }} />
+    <View style={{ width: size, height: size, borderRadius: size, backgroundColor: color }} />
   );
 }
 
@@ -176,12 +158,12 @@ export function Field({ style, ...rest }: TextInputProps) {
         {
           flex: 1,
           minWidth: 0,
-          backgroundColor: c.screen,
-          borderWidth: border,
+          backgroundColor: c.glassStrong,
+          borderWidth: 1,
           borderColor: c.line,
           borderRadius: radius.md,
-          paddingVertical: 11,
-          paddingHorizontal: 12,
+          paddingVertical: 12,
+          paddingHorizontal: 14,
           fontFamily: fonts.body,
           fontSize: 15,
           color: c.ink,
@@ -213,10 +195,10 @@ export function TapCard({
       {({ pressed }) => (
         // dims on press instead of moving, so the layout stays put
         <View style={{ opacity: pressed ? 0.55 : 1 }}>
-          <Chunky bg={bg} style={[{ padding: 16, gap: 12 }, style]}>
+          <Chunky bg={bg} style={[{ padding: 18, gap: 12 }, style]}>
             {children}
           </Chunky>
-          <Text style={{ position: 'absolute', top: 10, right: 16, fontFamily: fonts.mono, fontSize: 20, color: c.ink3 }}>›</Text>
+          <Text style={{ position: 'absolute', top: 14, right: 18, fontFamily: fonts.bodySemi, fontSize: 20, color: c.ink3 }}>›</Text>
         </View>
       )}
     </Pressable>
@@ -241,21 +223,21 @@ export function Row({ label, value, onPress, danger }: { label: string; value?: 
     >
       <Text style={{ flex: 1, fontFamily: fonts.bodySemi, fontSize: 16, color: danger ? c.tang : c.ink }}>{label}</Text>
       {value ? <Text style={{ fontFamily: fonts.body, fontSize: 15, color: c.ink3 }}>{value}</Text> : null}
-      <Text style={{ fontFamily: fonts.mono, fontSize: 18, color: c.ink3 }}>›</Text>
+      <Text style={{ fontFamily: fonts.bodySemi, fontSize: 18, color: c.ink3 }}>›</Text>
     </Pressable>
   );
 }
 
 export function Divider() {
   const c = useColors();
-  return <View style={{ height: 1.5, backgroundColor: c.soft }} />;
+  return <View style={{ height: 1, backgroundColor: c.line }} />;
 }
 
 export function ProgressBar({ value, color, height = 10 }: { value: number; color: string; height?: number }) {
   const c = useColors();
   return (
-    <View style={{ height, borderRadius: height / 2, borderWidth: 2, borderColor: c.line, backgroundColor: c.soft, overflow: 'hidden' }}>
-      <View style={{ width: `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`, height: '100%', backgroundColor: color }} />
+    <View style={{ height, borderRadius: height / 2, backgroundColor: c.soft, overflow: 'hidden' }}>
+      <View style={{ width: `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`, height: '100%', borderRadius: height / 2, backgroundColor: color }} />
     </View>
   );
 }

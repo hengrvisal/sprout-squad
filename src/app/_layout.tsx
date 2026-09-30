@@ -43,7 +43,6 @@ function RootStack() {
         <Stack.Screen name="notifications" />
         <Stack.Screen name="session" />
         <Stack.Screen name="focus-settings" />
-        <Stack.Screen name="month" />
         <Stack.Screen name="plant" />
         <Stack.Screen name="friend/[id]" />
         <Stack.Screen name="squad-manage" />

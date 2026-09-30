@@ -86,19 +86,19 @@ export function PlantCard({ plant, squadId, members, me }: { plant: PlantData; s
 
       {w?.label && (
         <Card bg={w.met ? c.grid[1] : undefined} style={{ gap: 10 }}>
-          <Eyebrow style={w.met ? { color: c.onGreen } : undefined}>This week’s goal</Eyebrow>
-          <H size={18} style={w.met ? { color: c.onGreen } : undefined}>
+          <Eyebrow style={w.met ? { color: c.ink } : undefined}>This week’s goal</Eyebrow>
+          <H size={18} style={w.met ? { color: c.ink } : undefined}>
             {w.label}
           </H>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View style={{ flex: 1 }}>
               <Bar value={w.progress / Math.max(1, w.target)} color={w.met ? c.grid[4] : c.lilac} />
             </View>
-            <Mono style={{ fontSize: 13, color: w.met ? c.onGreen : c.ink }}>
+            <Mono style={{ fontSize: 13, color: w.met ? c.ink : c.ink }}>
               {w.progress}/{w.target}
             </Mono>
           </View>
-          <Body style={{ fontSize: 13, color: w.met ? c.onGreen : c.ink2 }}>
+          <Body style={{ fontSize: 13, color: w.met ? c.ink : c.ink2 }}>
             {w.met ? `Goal hit! Growth spurt +${w.bonus} 🌱` : 'Hit it together for a 20% growth spurt this week. New goal every Monday.'}
           </Body>
         </Card>

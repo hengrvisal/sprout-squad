@@ -31,7 +31,7 @@ export function MonthGrid({
         {WEEKDAYS.map((w, i) => (
           <Text
             key={i}
-            style={{ flex: 1, textAlign: 'center', fontFamily: fonts.bodyBold, fontSize: mini ? 9 : 10.5, color: c.ink3 }}
+            style={{ flex: 1, textAlign: 'center', fontFamily: fonts.bodySemi, fontSize: mini ? 9 : 11, color: c.ink3 }}
           >
             {w}
           </Text>
@@ -41,14 +41,11 @@ export function MonthGrid({
         <View key={ri} style={{ flexDirection: 'row', gap }}>
           {row.map((cell, ci) => {
             if (cell.kind === 'pad') return <View key={ci} style={{ flex: 1, aspectRatio: 1 }} />;
-            const r = mini ? 5 : 10;
+            const r = mini ? 5 : 12;
             if (cell.isFuture) {
               return (
-                <View
-                  key={ci}
-                  style={{ flex: 1, aspectRatio: 1, borderRadius: r, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.soft, padding: 3 }}
-                >
-                  {!mini && <Text style={{ fontFamily: fonts.mono, fontSize: 10, color: c.ink3, opacity: 0.6 }}>{cell.day}</Text>}
+                <View key={ci} style={{ flex: 1, aspectRatio: 1, borderRadius: r, backgroundColor: c.soft, opacity: 0.45, padding: 5 }}>
+                  {!mini && <Text style={{ fontFamily: fonts.bodySemi, fontSize: 11, color: c.ink3 }}>{cell.day}</Text>}
                 </View>
               );
             }
@@ -77,32 +74,16 @@ function DayCell({ cell, mini, r }: { cell: Day; mini: boolean; r: number }) {
         aspectRatio: 1,
         borderRadius: r,
         backgroundColor: c.grid[cell.level],
-        padding: mini ? 0 : 4,
-        borderWidth: cell.isToday ? 2.5 : lit ? (mini ? 1.5 : 2) : 0,
-        borderColor: cell.isToday && !lit ? c.tang : c.line,
-        overflow: 'hidden',
+        padding: mini ? 0 : 5,
+        borderWidth: cell.isToday ? 2 : 0,
+        borderColor: lit ? c.ink : c.tang,
       }}
     >
-      {lit && (
-        <View
-          style={{
-            position: 'absolute',
-            top: mini ? 2 : 4,
-            left: mini ? 2 : 4,
-            width: mini ? 4 : 7,
-            height: mini ? 4 : 7,
-            borderRadius: 4,
-            backgroundColor: '#FFFFFF',
-            opacity: 0.45,
-          }}
-        />
-      )}
       {!mini && (
-        <Text style={{ fontFamily: fonts.mono, fontSize: 10, color: c.gridText[cell.level], opacity: cell.level ? 1 : 0.8, marginLeft: lit ? 8 : 0 }}>
+        <Text style={{ fontFamily: fonts.bodySemi, fontSize: 11, color: c.gridText[cell.level] }}>
           {cell.day}
         </Text>
       )}
-      {cell.level === 4 && !mini && <Text style={{ position: 'absolute', right: 3, bottom: 1, fontSize: 10 }}>✨</Text>}
     </View>
   );
   if (!cell.isToday) return body;
@@ -134,7 +115,7 @@ export function Legend() {
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
       <Text style={{ fontFamily: fonts.body, fontSize: 11, color: c.ink3 }}>less</Text>
       {c.grid.map((g) => (
-        <View key={g} style={{ width: 11, height: 11, borderRadius: 3, backgroundColor: g, borderWidth: g === c.grid[0] ? 0 : 1.2, borderColor: c.line }} />
+        <View key={g} style={{ width: 11, height: 11, borderRadius: 3, backgroundColor: g }} />
       ))}
       <Text style={{ fontFamily: fonts.body, fontSize: 11, color: c.ink3 }}>more</Text>
     </View>
@@ -163,18 +144,16 @@ function NavBtn({
       disabled={disabled}
       onPress={() => onChange(Math.min(0, offset + dir))}
       style={{
-        width: 34,
-        height: 34,
-        borderRadius: 10,
-        borderWidth: 2,
-        borderColor: c.line,
-        backgroundColor: c.card,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: c.glassStrong,
         alignItems: 'center',
         justifyContent: 'center',
         opacity: disabled ? 0.35 : 1,
       }}
     >
-      <Text style={{ fontFamily: fonts.mono, fontSize: 20, lineHeight: 22, color: c.ink }}>{label}</Text>
+      <Text style={{ fontFamily: fonts.bodySemi, fontSize: 22, lineHeight: 24, color: c.ink }}>{label}</Text>
     </Pressable>
   );
 }

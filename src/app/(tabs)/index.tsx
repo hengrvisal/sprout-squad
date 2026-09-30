@@ -1,52 +1,81 @@
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Animated, Pressable, Text, TextInput, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useCelebrate } from '@/components/Celebrate';
 import { CategoryPicker } from '@/components/CategoryPicker';
-import { MonthGrid } from '@/components/MonthGrid';
 import { Screen } from '@/components/Screen';
-import { WinSticker } from '@/components/WinSticker';
-import { Body, Button, Card, Chunky, Eyebrow, Mono, TapCard } from '@/components/ui';
+import { Button, Chunky } from '@/components/ui';
 import { useEntries } from '@/hooks/entries';
 import { useNotifications } from '@/hooks/notifications';
-import { useProfile } from '@/hooks/profile';
 import { useSquads } from '@/hooks/squads';
-import { CATEGORIES, categoryEmoji, CategoryKey } from '@/lib/categories';
-import { dailyPrompt, example, greeting, winMessage } from '@/lib/cheer';
-import { MONTHS, monthAt, monthStats, streak, weekTotal, ymd } from '@/lib/dates';
-import { dayLabels } from '@/lib/format';
+import { categoryColor, categoryEmoji, CategoryKey } from '@/lib/categories';
+import { dailyPrompt, example, winMessage } from '@/lib/cheer';
+import { streak, ymd } from '@/lib/dates';
 import { tally } from '@/lib/kudos';
-import { planProgress, sortPlans } from '@/lib/plans';
-import { border, fonts, radius, useColors } from '@/theme/tokens';
+import { sortPlans } from '@/lib/plans';
+import { fonts, radius, softShadow, useColors } from '@/theme/tokens';
 
-const SHOW_WINS = 4;
-const INK = '#131B33'; // text on the bright category colours, same in light and dark
+const SHOW = 5;
+
+/** One line in today's list: a win (filled) or a planned thing still to do (hollow, tap to log). */
+function Line({ emoji, color, text, done, onPress, i }: { emoji: string; color: string; text: string; done: boolean; onPress?: () => void; i: number }) {
+  const c = useColors();
+  const [pop] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.spring(pop, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 10, delay: Math.min(i, 6) * 35 }).start();
+  }, [pop, i]);
+  return (
+    <Animated.View style={{ opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }] }}>
+      <Pressable
+        disabled={!onPress}
+        onPress={onPress}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={done ? `${text}, done` : `Log ${text}`}
+        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9, opacity: pressed ? 0.6 : 1 })}
+      >
+        <View
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: done ? color : 'transparent',
+            borderWidth: done ? 0 : 1.5,
+            borderColor: c.ink3,
+            borderStyle: done ? 'solid' : 'dashed',
+          }}
+        >
+          <Text style={{ fontSize: 16, opacity: done ? 1 : 0.5 }}>{emoji}</Text>
+        </View>
+        <Text numberOfLines={1} style={{ flex: 1, fontFamily: done ? fonts.bodySemi : fonts.bodyMedium, fontSize: 16, color: done ? c.ink : c.ink2 }}>
+          {text}
+        </Text>
+        {!done && <Text style={{ fontFamily: fonts.bodySemi, fontSize: 12.5, color: c.ink3 }}>tap when done</Text>}
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 /**
- * Today: log a win (and feel good about it), see today's wins, see the month filling in.
- * The full list (/day) and month history (/month) are one tap away.
+ * Today does one thing: log what you got done. Your wins (and anything you planned)
+ * collect underneath. The month, focus timer, squad and settings each have their own page.
  */
 export default function Today() {
   const c = useColors();
   const celebrate = useCelebrate();
-  const { profile } = useProfile();
   const { counts, today, add, error, plans, completePlan } = useEntries();
-  const { received, notes, refresh: refreshSquads } = useSquads();
+  const { received, refresh: refreshSquads } = useSquads();
   const { showPrompt, enable, dismissPrompt } = useNotifications();
   const [text, setText] = useState('');
   const [cat, setCat] = useState<CategoryKey>('study');
-  const [focused, setFocused] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const { date } = dayLabels();
-  const { y, m } = monthAt(0);
   const st = streak(counts);
-  const current = CATEGORIES.find((k) => k.key === cat) ?? CATEGORIES[0];
-  const planned = planProgress(plans);
-  const latestNote = notes[0];
-  const week = weekTotal(counts);
-  const month = monthStats(counts, y, m);
-  const firstName = profile?.display_name?.split(' ')[0];
+  const open = sortPlans(plans).filter((p) => !p.entry_id);
+  const kudos = tally(received);
+  const date = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 
   // pick up kudos friends sent while you were away
   useFocusEffect(
@@ -87,238 +116,119 @@ export default function Today() {
     }
   }
 
+  const ready = !!text.trim();
+
   return (
     <Screen
+      gradient="today"
       subtitle={date}
-      title={firstName ? `${greeting()}, ${firstName}` : greeting()}
+      title="Today"
       right={
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={st ? `${st}-day streak. Open month` : 'No streak yet. Open month'}
-          onPress={() => router.push('/month')}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            borderWidth: 2,
-            borderColor: c.line,
-            borderRadius: radius.pill,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-            backgroundColor: st ? c.tang : c.card,
-            marginBottom: 4,
-          }}
+        <View
+          accessibilityLabel={`${st}-day streak`}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.glassStrong, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 }}
         >
-          <Text style={{ fontSize: 15, opacity: st ? 1 : 0.5 }}>🔥</Text>
-          <Text style={{ fontFamily: fonts.mono, fontSize: 15, color: st ? INK : c.ink3 }}>{st}</Text>
-        </Pressable>
+          <Text style={{ fontSize: 15, opacity: st ? 1 : 0.4 }}>🔥</Text>
+          <Text style={{ fontFamily: fonts.bodyBold, fontSize: 15, color: st ? c.ink : c.ink3 }}>{st}</Text>
+        </View>
       }
     >
-      {error && <Body style={{ color: c.tang, fontSize: 13 }}>{error}</Body>}
-
-      {/* 1. log a win: the star of the page */}
-      <Chunky style={{ padding: 16, gap: 14 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-          <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 25, lineHeight: 29, color: c.ink, letterSpacing: -0.5 }}>{dailyPrompt()}</Text>
-          <View
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 16,
-              borderWidth: 2,
-              borderColor: c.line,
-              backgroundColor: current.color,
-              alignItems: 'center',
-              justifyContent: 'center',
-              transform: [{ rotate: '6deg' }],
-            }}
-          >
-            <Text style={{ fontSize: 26 }}>{current.emoji}</Text>
-          </View>
-        </View>
+      {/* the one main thing */}
+      <View style={{ gap: 18, marginTop: 8 }}>
+        <Text style={{ fontFamily: fonts.display, fontSize: 34, lineHeight: 38, color: c.ink, letterSpacing: -1 }}>{dailyPrompt()}</Text>
 
         <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: c.screen,
-            borderWidth: border,
-            borderColor: focused ? current.color : c.line,
-            borderRadius: radius.md,
-            paddingLeft: 12,
-            paddingRight: 5,
-            paddingVertical: 5,
-          }}
+          style={[
+            { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.glassStrong, borderRadius: radius.pill, paddingLeft: 20, paddingRight: 6, paddingVertical: 6 },
+            softShadow(c),
+          ]}
         >
           <TextInput
             value={text}
             onChangeText={setText}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
             maxLength={90}
-            placeholder={`e.g. ${example(cat, today.length)}`}
+            placeholder={example(cat, today.length)}
             placeholderTextColor={c.ink3}
             returnKeyType="done"
             onSubmitEditing={onLog}
             accessibilityLabel="What you got done"
-            style={{ flex: 1, minWidth: 0, paddingVertical: 8, fontFamily: fonts.bodyMedium, fontSize: 16, color: c.ink }}
+            style={{ flex: 1, minWidth: 0, paddingVertical: 10, fontFamily: fonts.bodyMedium, fontSize: 17, color: c.ink }}
           />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Log it"
-            disabled={!text.trim()}
+            disabled={!ready}
             onPress={onLog}
             style={({ pressed }) => ({
-              paddingHorizontal: 14,
-              paddingVertical: 9,
-              borderRadius: 11,
-              borderWidth: 2,
-              borderColor: c.line,
-              backgroundColor: text.trim() ? c.grid[3] : c.soft,
+              width: 46,
+              height: 46,
+              borderRadius: 23,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: ready ? c.accent : c.soft,
               opacity: pressed ? 0.7 : 1,
             })}
           >
-            <Text style={{ fontFamily: fonts.display, fontSize: 15, color: text.trim() ? c.onGreen : c.ink3 }}>Log it</Text>
+            <Svg width={22} height={22} viewBox="0 0 24 24">
+              <Path d="M5 12.5l4.5 4.5L19 7.5" stroke={ready ? '#FFFFFF' : c.ink3} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            </Svg>
           </Pressable>
         </View>
 
-        <CategoryPicker value={cat} onChange={setCat} />
-        {saveError && <Body style={{ color: c.tang, fontSize: 13 }}>{saveError}</Body>}
+        <CategoryPicker compact value={cat} onChange={setCat} />
+        {(saveError || error) && <Text style={{ fontFamily: fonts.bodySemi, color: c.tang, fontSize: 13 }}>{saveError ?? error}</Text>}
+      </View>
 
-        {/* today's plan: tap an item to log it as a win */}
-        <View style={{ borderTopWidth: 1.5, borderTopColor: c.soft, paddingTop: 12, gap: 8 }}>
-          {plans.length === 0 ? (
-            <Pressable accessibilityRole="button" onPress={() => router.push('/plan')} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
-              <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13.5, color: c.ink3 }}>＋ Plan up to 3 things for today</Text>
+      {/* what's done (and what's planned) */}
+      <Chunky style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+        {today.length === 0 && open.length === 0 ? (
+          <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 15, color: c.ink3, paddingVertical: 12, textAlign: 'center' }}>
+            Your first win turns today’s square green ✨
+          </Text>
+        ) : (
+          <>
+            {today.slice(0, SHOW).map((e, i) => (
+              <Line key={e.id} i={i} done emoji={categoryEmoji(e.category)} color={categoryColor(e.category)} text={e.text} />
+            ))}
+            {open.map((p, i) => (
+              <Line key={p.id} i={today.length + i} done={false} emoji="" color={c.soft} text={p.text} onPress={() => onTick(p.id)} />
+            ))}
+          </>
+        )}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 }}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/plan')} hitSlop={8}>
+            <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13.5, color: c.ink3 }}>{plans.length ? 'Edit plan' : '＋ Plan your day'}</Text>
+          </Pressable>
+          {today.length > 0 && (
+            <Pressable accessibilityRole="button" onPress={() => router.push('/day')} hitSlop={8}>
+              <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13.5, color: c.ink3 }}>
+                {today.length > SHOW ? `All ${today.length} ›` : 'Edit ›'}
+              </Text>
             </Pressable>
-          ) : (
-            <>
-              <Pressable accessibilityRole="button" accessibilityLabel="Edit today’s plan" onPress={() => router.push('/plan')} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Eyebrow>
-                  Plan · {planned.done}/{planned.total}
-                </Eyebrow>
-                <Text style={{ fontFamily: fonts.bodySemi, fontSize: 12, color: c.ink3 }}>Edit ›</Text>
-              </Pressable>
-              {sortPlans(plans).map((p) => {
-                const done = !!p.entry_id;
-                return (
-                  <Pressable
-                    key={p.id}
-                    accessibilityRole="button"
-                    accessibilityState={{ checked: done, disabled: done }}
-                    accessibilityLabel={done ? `${p.text}, done` : `Log ${p.text}`}
-                    disabled={done}
-                    onPress={() => onTick(p.id)}
-                    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, opacity: pressed ? 0.6 : 1 })}
-                  >
-                    <View
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 8,
-                        borderWidth: 2,
-                        borderColor: c.line,
-                        backgroundColor: done ? c.grid[3] : c.card,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {done && <Text style={{ fontSize: 13, color: c.onGreen, fontFamily: fonts.bodyBold }}>✓</Text>}
-                    </View>
-                    <Text
-                      numberOfLines={1}
-                      style={{ flex: 1, fontFamily: fonts.bodyMedium, fontSize: 15, color: done ? c.ink3 : c.ink, textDecorationLine: done ? 'line-through' : 'none' }}
-                    >
-                      {p.text}
-                    </Text>
-                    {!done && <Text style={{ fontFamily: fonts.bodySemi, fontSize: 12, color: c.ink3 }}>tap when done</Text>}
-                  </Pressable>
-                );
-              })}
-            </>
           )}
         </View>
       </Chunky>
 
-      {/* 2. today's wins */}
-      <TapCard label="Open today’s list" onPress={() => router.push('/day')} style={{ gap: 10 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingRight: 18 }}>
-          <Text style={{ fontFamily: fonts.displayBold, fontSize: 18, color: c.ink }}>Today’s wins</Text>
-          {today.length > 0 && (
-            <View style={{ backgroundColor: c.grid[3], borderRadius: radius.pill, borderWidth: 2, borderColor: c.line, paddingHorizontal: 8 }}>
-              <Mono style={{ fontSize: 13, color: c.onGreen }}>{today.length}</Mono>
-            </View>
-          )}
-        </View>
-        {today.length === 0 ? (
-          <View style={{ borderWidth: 2, borderStyle: 'dashed', borderColor: c.ink3, borderRadius: radius.md, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={{ width: 30, height: 30, borderRadius: 8, borderWidth: 2.5, borderColor: c.tang, backgroundColor: c.grid[0] }} />
-            <Text style={{ flex: 1, fontFamily: fonts.bodySemi, fontSize: 14, color: c.ink2 }}>
-              Your first win turns today’s square green. Even small stuff counts ✨
-            </Text>
-          </View>
-        ) : (
-          <View style={{ gap: 8 }}>
-            {today.slice(0, SHOW_WINS).map((e, i) => (
-              <WinSticker key={e.id} text={e.text} category={e.category} i={i} />
-            ))}
-            {today.length > SHOW_WINS && (
-              <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: c.ink3 }}>+{today.length - SHOW_WINS} more</Text>
-            )}
-          </View>
-        )}
-        {received.length > 0 && (
-          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            {tally(received).map(([e, n]) => (
-              <View key={e} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.lilac, borderRadius: radius.pill, borderWidth: 2, borderColor: c.line, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ fontSize: 14 }}>{e}</Text>
-                <Mono style={{ fontSize: 12, color: INK }}>{n}</Mono>
-              </View>
-            ))}
-            <Text style={{ fontFamily: fonts.bodySemi, fontSize: 12.5, color: c.ink2 }}>kudos from your squad</Text>
-          </View>
-        )}
-        {today.length === 0 && week > 0 && (
-          <Pressable accessibilityRole="button" onPress={() => router.push('/week')} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
-            <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: c.ink2 }}>
-              Quiet day? You’ve done {week} {week === 1 ? 'thing' : 'things'} this week. <Text style={{ color: c.ink }}>See them ›</Text>
-            </Text>
-          </Pressable>
-        )}
-        {latestNote && (
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', paddingRight: 18 }}>
-            <Text style={{ fontSize: 15 }}>{latestNote.avatar}</Text>
-            <Text numberOfLines={2} style={{ flex: 1, fontFamily: fonts.body, fontSize: 13.5, color: c.ink2 }}>
-              <Text style={{ fontFamily: fonts.bodyBold, color: c.ink }}>{latestNote.name}:</Text> “{latestNote.note}”
-              {notes.length > 1 ? <Text style={{ color: c.ink3 }}> +{notes.length - 1} more</Text> : null}
-            </Text>
-          </View>
-        )}
-      </TapCard>
-
-      {showPrompt && (
-        <Card bg={c.lilac} style={{ gap: 10 }}>
-          <Text style={{ fontFamily: fonts.displayBold, fontSize: 17, color: c.tangInk }}>Nice one. Want a heads-up when your squad cheers you on?</Text>
-          <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-            <Button label="Turn on" onPress={() => enable().finally(dismissPrompt)} />
-            <Pressable accessibilityRole="button" onPress={dismissPrompt} hitSlop={8}>
-              <Text style={{ fontFamily: fonts.bodySemi, fontSize: 14, color: c.tangInk }}>Not now</Text>
-            </Pressable>
-          </View>
-        </Card>
+      {kudos.length > 0 && (
+        <Pressable accessibilityRole="button" onPress={() => router.push('/day')} style={{ alignSelf: 'center' }}>
+          <Text style={{ fontFamily: fonts.bodySemi, fontSize: 14, color: c.ink2 }}>
+            {kudos.map(([e, n]) => `${e}${n > 1 ? ` ${n}` : ''}`).join('  ')}
+            <Text style={{ color: c.ink3 }}>  from your squad</Text>
+          </Text>
+        </Pressable>
       )}
 
-      {/* 3. the month */}
-      <TapCard label="Open month history" onPress={() => router.push('/month')} style={{ gap: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, paddingRight: 22 }}>
-          <Text style={{ fontFamily: fonts.displayBold, fontSize: 18, color: c.ink }}>{MONTHS[m]}</Text>
-          <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: c.ink2 }}>
-            <Mono style={{ fontSize: 13, color: c.ink }}>{month.greenDays}</Mono> green {month.greenDays === 1 ? 'day' : 'days'}
-          </Text>
-        </View>
-        <MonthGrid y={y} m={m} counts={counts} mini gap={6} />
-      </TapCard>
+      {showPrompt && (
+        <Chunky style={{ padding: 18, gap: 12 }}>
+          <Text style={{ fontFamily: fonts.bodyBold, fontSize: 16, color: c.ink }}>Get a nudge when your squad cheers you on?</Text>
+          <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+            <Button label="Turn on" onPress={() => enable().finally(dismissPrompt)} />
+            <Pressable accessibilityRole="button" onPress={dismissPrompt} hitSlop={8}>
+              <Text style={{ fontFamily: fonts.bodySemi, fontSize: 14, color: c.ink3 }}>Not now</Text>
+            </Pressable>
+          </View>
+        </Chunky>
+      )}
     </Screen>
   );
 }
