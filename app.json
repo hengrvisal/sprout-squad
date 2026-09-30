@@ -36,17 +36,17 @@
         {
           "image": "./assets/splash-icon.png",
           "imageWidth": 180,
-          "backgroundColor": "#DCE8FF",
+          "backgroundColor": "#F4F5EF",
           "dark": {
             "image": "./assets/splash-icon.png",
-            "backgroundColor": "#0B1022"
+            "backgroundColor": "#0F1512"
           }
         }
       ],
       [
         "expo-notifications",
         {
-          "color": "#3DBB57"
+          "color": "#4E9A5E"
         }
       ]
     ],
