@@ -331,7 +331,8 @@
       ['Meal prep', '#6FE0C8'], ['Sketchbook page', '#FFE45C'], ['40 flashcards', '#7CC4FF'], ['Bouldering', '#FF6F91'],
       ['Laundry, finally', '#6FE0C8'], ['Fixed the flaky test', '#B9A6FF'], ['Recorded a demo', '#FFE45C'], ['Weekly update', '#FFB443']],
     kudos: [['🔥 Jun sent Mia kudos', '#3DBB57'], ['💪 Ari cheered you on', '#8DF08A'], ['🌱 Your plant grew a leaf', '#3DBB57'],
-      ['👏 Mia sent Jun kudos', '#86DB6E'], ['🔥 Full squad day', '#3DBB57'], ['🌻 Ari is on a 6 day streak', '#8DF08A']],
+      ['👏 Mia sent Jun kudos', '#86DB6E'], ['🔥 Full squad day', '#3DBB57'], ['🌻 Ari is on a 6 day streak', '#8DF08A'],
+      ['💬 Mia left you a note', '#86DB6E'], ['🌿 Jun started a focus session', '#3DBB57'], ['✅ Ticked off: lab report', '#8DF08A']],
   };
   $$('[data-marquee]').forEach((track) => {
     const items = BAND[track.dataset.marquee] || [];
@@ -746,6 +747,231 @@
       render(0);
       onScroll();
     }
+  }
+
+  // ---------- together: plans, focus sessions, notes, last 7 days, nudges ----------
+  // Each demo starts when its tile scrolls in, and only animates while it's on screen.
+  const onScreen = new WeakMap();
+  const watch = (el) => {
+    if (!el || !('IntersectionObserver' in window)) return;
+    new IntersectionObserver(([e]) => onScreen.set(el, e.isIntersecting)).observe(el);
+  };
+  const visibleNow = (el) => onScreen.get(el) !== false;
+  const waitVisible = async (el) => { while (!visibleNow(el)) await sleep(400); };
+
+  // grow together: people join, the clock runs, wins arrive, the bonus switches on
+  const sessionTile = $('[data-tile="session"]');
+  if (sessionTile) {
+    watch(sessionTile);
+    const clockEl = $('[data-sd-clock]', sessionTile);
+    const statusEl = $('[data-sd-status]', sessionTile);
+    const peopleEl = $('[data-sd-people]', sessionTile);
+    const feedEl = $('[data-sd-feed]', sessionTile);
+    const joinBtn = $('[data-sd-join]', sessionTile);
+    const people = new Set();
+    let secs = 25 * 60;
+    const addPerson = (emoji, name, color) => {
+      if (people.has(name)) return;
+      people.add(name);
+      const el = document.createElement('div');
+      el.className = 'sd-person pop-in';
+      el.style.setProperty('--m', color);
+      el.innerHTML = `<span class="av">${emoji}</span>${name}`;
+      peopleEl.appendChild(el);
+      const bonus = people.size >= 2;
+      statusEl.textContent = bonus ? '🌿 Plant bonus is on' : 'Bonus starts when a second person joins';
+      statusEl.classList.toggle('on', bonus);
+    };
+    const addWin = (who, text) => {
+      const el = document.createElement('div');
+      el.className = 'sd-win pop-in';
+      el.innerHTML = `<b></b><span></span>${people.size >= 2 ? '<em class="bonus">+ bonus</em>' : ''}`;
+      el.querySelector('b').textContent = who;
+      el.querySelector('span').textContent = text;
+      feedEl.prepend(el);
+      while (feedEl.children.length > 4) feedEl.lastElementChild.remove();
+    };
+    const fmt = (t) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+    joinBtn.addEventListener('click', () => {
+      addPerson('🐸', 'You', '#7CC4FF');
+      joinBtn.hidden = true;
+      for (let k = 0; k < 4; k++) setTimeout(() => burstAt(joinBtn.parentElement.querySelector('.sd-person:last-child'), '🌿'), k * 120);
+    });
+    // a couple of wins already in, so it never looks empty
+    addPerson('🦊', 'Mia', '#FF6F91');
+    addWin('🦊 Mia', 'Read the brief');
+    addWin('🦊 Mia', 'Outline, done');
+    whenVisible(sessionTile, async () => {
+      if (reduce) {
+        addPerson('🐙', 'Jun', '#FFB443');
+        addWin('🐙 Jun', 'Chapter 3 notes');
+        addWin('🦊 Mia', 'Lab report intro');
+        clockEl.textContent = '18:42';
+        return;
+      }
+      setInterval(() => {
+        if (!visibleNow(sessionTile)) return;
+        secs = secs > 1 ? secs - 1 : 25 * 60;
+        clockEl.textContent = fmt(secs);
+      }, 1000);
+      const WINS = [['🦊 Mia', 'Lab report intro'], ['🐙 Jun', 'Chapter 3 notes'], ['🦊 Mia', '20 flashcards'], ['🐙 Jun', 'Fixed the login bug'], ['🦊 Mia', 'Emails, done'], ['🐙 Jun', 'Problem set Q1–4']];
+      await sleep(2200);
+      addPerson('🐙', 'Jun', '#FFB443');
+      for (let i = 0; ; i = (i + 1) % WINS.length) {
+        await sleep(3200);
+        await waitVisible(sessionTile);
+        addWin(...WINS[i]);
+      }
+    });
+  }
+
+  // plans: tick one off and it's logged (ticks itself until you tap one)
+  const planTile = $('[data-tile="plan"]');
+  if (planTile) {
+    watch(planTile);
+    const rows = $$('[data-pd]', planTile);
+    const countEl = $('[data-pd-count]', planTile);
+    let userOn = false;
+    const update = () => (countEl.textContent = `${rows.filter((r) => r.classList.contains('done')).length}/${rows.length}`);
+    const tick = (r, fromUser) => {
+      const done = r.classList.toggle('done');
+      r.setAttribute('aria-pressed', String(done));
+      update();
+      if (fromUser && done) ['🌱', '✅'].forEach((e, k) => setTimeout(() => burstAt(r.querySelector('.box'), e), k * 140));
+    };
+    rows.forEach((r) => {
+      r.setAttribute('aria-pressed', 'false');
+      r.addEventListener('click', () => {
+        if (!userOn) {
+          userOn = true;
+          rows.forEach((x) => x.classList.contains('done') && tick(x, false));
+        }
+        tick(r, true);
+      });
+    });
+    update();
+    whenVisible(planTile, async () => {
+      if (reduce) return tick(rows[0], false);
+      for (;;) {
+        for (const r of rows) {
+          await sleep(1400);
+          await waitVisible(planTile);
+          if (userOn) return;
+          tick(r, false);
+        }
+        await sleep(2600);
+        if (userOn) return;
+        rows.forEach((r) => r.classList.contains('done') && tick(r, false));
+      }
+    });
+  }
+
+  // notes: a couple of private notes come in, one after another
+  const notesEl = $('[data-nd]');
+  if (notesEl) {
+    const tile = notesEl.closest('.tile');
+    watch(tile);
+    const NOTES = [
+      ['🦊', 'Mia', 'you finally did the laundry 😭 so proud', 'Only you and Mia'],
+      ['🐙', 'Jun', 'that lab report was brutal, well done', 'Only you and Jun'],
+      ['🌻', 'Ari', 'see you at the library tomorrow?', 'Only you and Ari'],
+      ['🦊', 'Mia', 'three days in a row!!', 'Only you and Mia'],
+    ];
+    const show = ([emoji, name, text, who]) => {
+      const el = document.createElement('div');
+      el.className = 'nd-note pop-in';
+      el.innerHTML = `<span class="av">${emoji}</span><div class="nd-bubble"><b></b><p></p><small>🔒 ${who}</small></div>`;
+      el.querySelector('b').textContent = name;
+      el.querySelector('p').textContent = text;
+      notesEl.appendChild(el);
+      const live = $$('.nd-note:not(.out)', notesEl);
+      if (live.length > 2) {
+        live[0].classList.add('out');
+        setTimeout(() => live[0].remove(), 400);
+      }
+    };
+    whenVisible(tile, async () => {
+      if (reduce) return NOTES.slice(0, 2).forEach(show);
+      for (let i = 0; ; i = (i + 1) % NOTES.length) {
+        await waitVisible(tile);
+        show(NOTES[i]);
+        await sleep(3400);
+      }
+    });
+  }
+
+  // last 7 days: squares stack up per day, then a search types itself
+  const weekTile = $('[data-tile="week"]');
+  if (weekTile) {
+    watch(weekTile);
+    const bars = $('[data-wd-bars]', weekTile);
+    const DAYS = [['M', 2], ['T', 3], ['W', 0], ['T', 4], ['F', 2], ['S', 1], ['S', 2]];
+    bars.innerHTML = DAYS.map(([d, n], col) => {
+      const cells = n ? Array.from({ length: n }, (_, k) => `<i style="--dl:${(col * 0.08 + k * 0.06).toFixed(2)}s"></i>`).join('') : '<i class="rest" style="--dl:0s"></i>';
+      return `<div class="wd-day"><small>${d}</small>${cells}</div>`;
+    }).join('');
+    const q = $('[data-wd-q]', weekTile);
+    const n = $('[data-wd-n]', weekTile);
+    const SEARCHES = [['assignment', '4 matches'], ['run', '11 matches'], ['shipped', '6 matches']];
+    whenVisible(weekTile, async () => {
+      $('.week-demo', weekTile).classList.add('on');
+      if (reduce) {
+        q.textContent = SEARCHES[0][0];
+        n.textContent = SEARCHES[0][1];
+        return;
+      }
+      for (let i = 0; ; i = (i + 1) % SEARCHES.length) {
+        const [word, hits] = SEARCHES[i];
+        await waitVisible(weekTile);
+        for (const ch of word) { q.textContent += ch; await sleep(90 + Math.random() * 60); }
+        await sleep(300);
+        n.textContent = hits;
+        await sleep(2400);
+        n.textContent = '';
+        while (q.textContent) { q.textContent = q.textContent.slice(0, -1); await sleep(40); }
+        await sleep(500);
+      }
+    });
+  }
+
+  // nudges: notifications land one by one, and the evening one gets a typed reply
+  const nudgeEl = $('[data-nudges]');
+  if (nudgeEl) {
+    const tile = nudgeEl.closest('.tile');
+    watch(tile);
+    const cards = $$('.nn', nudgeEl);
+    const reply = $('.nn-reply', nudgeEl);
+    const typed = $('[data-nn-typed]', nudgeEl);
+    const btn = $('.nn-field em', nudgeEl);
+    whenVisible(tile, async () => {
+      if (reduce) {
+        cards.forEach((c) => c.classList.add('show'));
+        typed.textContent = 'Laundry, finally';
+        reply.classList.add('logged');
+        btn.textContent = 'Logged ✓';
+        return;
+      }
+      for (;;) {
+        await waitVisible(tile);
+        cards[0].classList.add('show');
+        await sleep(900);
+        for (const ch of 'Laundry, finally') { typed.textContent += ch; await sleep(70 + Math.random() * 50); }
+        await sleep(350);
+        btn.classList.add('press'); await sleep(150); btn.classList.remove('press');
+        reply.classList.add('logged');
+        btn.textContent = 'Logged ✓';
+        await sleep(1100);
+        cards[1].classList.add('show');
+        await sleep(1500);
+        cards[2].classList.add('show');
+        await sleep(4200);
+        cards.forEach((c) => c.classList.remove('show'));
+        await sleep(700);
+        typed.textContent = '';
+        reply.classList.remove('logged');
+        btn.textContent = 'Log';
+      }
+    });
   }
 
   // ---------- waitlist ----------

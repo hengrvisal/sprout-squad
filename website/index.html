@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sprout Squad · Grow your green together</title>
-  <meta name="description" content="Log the productive things you do each day. Your squad sees your grid fill up, and you see theirs. Kudos, no leaderboard.">
+  <meta name="description" content="Log the productive things you do each day. Your squad sees your grid fill up, and you see theirs. Plan a little, focus together, cheer each other on. No leaderboard.">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0B1022" media="(prefers-color-scheme: dark)">
   <meta property="og:title" content="Sprout Squad">
@@ -26,9 +26,10 @@
       <a class="brand" href="/" aria-label="Sprout Squad home"><span class="brand-mark"><img src="/mark.png" alt=""></span><span class="brand-name">Sprout Squad</span></a>
       <nav class="nav-links" aria-label="Main">
         <a href="#how">How it works</a>
+        <a href="#together">Together</a>
         <a href="#plant">Squad plant</a>
-        <a href="#why">Why</a>
-        <a href="#faq">FAQ</a>
+        <a class="nav-extra" href="#why">Why</a>
+        <a class="nav-extra" href="#faq">FAQ</a>
         <a class="btn small" href="#join">Join the beta</a>
       </nav>
     </header>
@@ -246,6 +247,105 @@
     </div>
   </section>
 
+  <!-- ============ together: the newer features ============ -->
+  <div class="wrap">
+    <section id="together" class="together">
+      <div class="together-head" data-reveal>
+        <p class="label tilde">Made for real days</p>
+        <h2>Plan a little. Focus together. <span class="hl">See the proof.</span></h2>
+        <p class="lede">For the busy days, the slow days, and the ones in between.</p>
+      </div>
+
+      <div class="bento">
+        <!-- grow together -->
+        <article class="tile tile-session" data-reveal data-tile="session" style="--cat:#3DBB57">
+          <div class="tile-copy">
+            <p class="label">Grow together</p>
+            <h3>Focus side by side.</h3>
+            <p>Start a 25, 50 or 90 minute session and your squad gets a ping to join. Wins you log together give the plant a bonus.</p>
+          </div>
+          <div class="demo session-demo">
+            <div class="sd-top"><span class="sd-title">Assignment 2</span><span class="sd-live"><i></i>Live</span></div>
+            <div class="sd-clock mono" data-sd-clock aria-hidden="true">25:00</div>
+            <div class="sd-status" data-sd-status>Waiting for someone to join</div>
+            <div class="sd-people" data-sd-people></div>
+            <button type="button" class="sd-join" data-sd-join>Join in</button>
+            <p class="sd-feed-label">Done since it started</p>
+            <div class="sd-feed" data-sd-feed aria-live="polite"></div>
+          </div>
+        </article>
+
+        <!-- plans -->
+        <article class="tile tile-plan" data-reveal data-tile="plan" style="--d:.1s;--cat:#7CC4FF">
+          <div class="tile-copy">
+            <p class="label">Today’s plan</p>
+            <h3>Plan a little.</h3>
+            <p>Up to three things. Tick one off and it’s logged. Didn’t get to it? It quietly disappears at midnight.</p>
+          </div>
+          <div class="demo plan-demo">
+            <div class="pd-head"><span>Plan</span><b data-pd-count>0/3</b></div>
+            <button type="button" class="pd-row" data-pd><span class="box"></span><span class="t">Finish the lab report</span><span class="tag">logged</span></button>
+            <button type="button" class="pd-row" data-pd><span class="box"></span><span class="t">Call Mum</span><span class="tag">logged</span></button>
+            <button type="button" class="pd-row" data-pd><span class="box"></span><span class="t">Gym, legs day</span><span class="tag">logged</span></button>
+          </div>
+        </article>
+
+        <!-- notes -->
+        <article class="tile tile-notes" data-reveal data-tile="notes" style="--cat:#B9A6FF">
+          <div class="tile-copy">
+            <p class="label">Kudos notes</p>
+            <h3>A few words, just for them.</h3>
+            <p>Add a private note to your kudos. Only the two of you can read it.</p>
+          </div>
+          <div class="demo notes-demo" data-nd aria-live="polite"></div>
+        </article>
+
+        <!-- last 7 days -->
+        <article class="tile tile-week" data-reveal data-tile="week" style="--d:.1s;--cat:#FFB443">
+          <div class="tile-copy">
+            <p class="label">Your last 7 days</p>
+            <h3>Proof, for the slow days.</h3>
+            <p>Feel like you did nothing this week? Here’s everything you actually did. Search back through every win you’ve ever logged.</p>
+          </div>
+          <div class="demo week-demo">
+            <div class="wd-card">
+              <b>You did more than it feels like.</b>
+              <span>14 things done across 6 days.</span>
+              <span>That’s more than the 7 days before (9).</span>
+              <span>Thursday was your big day (4).</span>
+            </div>
+            <div class="wd-bars" data-wd-bars aria-hidden="true"></div>
+            <div class="wd-search"><span class="ico">⌕</span><span class="q" data-wd-q></span><span class="n" data-wd-n></span></div>
+          </div>
+        </article>
+
+        <!-- nudges -->
+        <article class="tile tile-nudge" data-reveal data-tile="nudge" style="--cat:#FF6F91">
+          <div class="tile-copy">
+            <p class="label">Gentle nudges</p>
+            <h3>Nudges that help.</h3>
+            <p>An evening check-in, only if you haven’t logged. Reply right from the notification. You choose which ones you get.</p>
+          </div>
+          <div class="demo nudge-demo" data-nudges aria-hidden="true">
+            <div class="nn nn-reply">
+              <div class="nn-top"><img src="/mark.png" alt=""><span>Sprout Squad</span><small>8:00 pm</small></div>
+              <b>What did you get done today?</b>
+              <div class="nn-field"><span data-nn-typed></span><em>Log</em></div>
+            </div>
+            <div class="nn">
+              <div class="nn-top"><img src="/mark.png" alt=""><span>Sprout Squad</span><small>now</small></div>
+              <b>Jun sent you 🔥</b><span>Someone noticed. Keep going.</span>
+            </div>
+            <div class="nn">
+              <div class="nn-top"><img src="/mark.png" alt=""><span>Sprout Squad</span><small>6:00 pm</small></div>
+              <b>Mia has been quiet for a few days</b><span>A kudo or a note might be nice 🌱</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+
   <div class="wrap">
     <!-- ============ why / story ============ -->
     <section id="why">
@@ -281,6 +381,8 @@
         <details data-reveal><summary>Is it free?</summary><p>Yes. The beta is free, and there are no ads.</p></details>
         <details data-reveal><summary>Which phones does it work on?</summary><p>The beta is on iPhone, through Apple’s TestFlight app. Android is planned. Pick “Android” when you join and we’ll let you know.</p></details>
         <details data-reveal><summary>Who can see what I log?</summary><p>Only people in a squad with you. There’s no public profile and no feed for strangers. If you’re not in a squad, it’s just you.</p></details>
+        <details data-reveal><summary>Who can see my plans and notes?</summary><p>Your plan for the day is visible to your squad, like your wins. Kudos notes are private: only you and the person you wrote to can read them.</p></details>
+        <details data-reveal><summary>Will it spam me with notifications?</summary><p>No. You get an evening check-in only if you haven’t logged anything that day, one heads-up per friend per day when they cheer you on, and a quiet-friend nudge at most once per quiet stretch. Each one has its own switch in the app.</p></details>
         <details data-reveal><summary>Can I delete my data?</summary><p>Any time, from inside the app: Me → Delete account. It removes everything straight away. <a href="/delete-account">More on deleting your account</a>.</p></details>
         <details data-reveal><summary>What happens after I join the beta?</summary><p>We’ll email you a TestFlight invite when there’s a spot. Install TestFlight, tap the link, and you’re in.</p></details>
       </div>
