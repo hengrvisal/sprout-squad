@@ -10,5 +10,5 @@
 - All data access goes through RLS; don't add service-role keys to the app.
 - Schema changes: add a new numbered file in `supabase/migrations/`, never edit an applied one.
 - Before calling a task done: `npm run typecheck && npm run lint && npm test`.
-- Five pages (Today · Month · Focus · Squad · Me), swipeable. Each page does ONE main thing (log / grid / timer / plant / you) and fits one phone screen; no stacks of cards, no explanatory paragraphs. Anything more goes on a detail screen one tap away (`DetailScreen`).
+- Five pages (Today · Month · Focus · Squad · Me) in one native paging scroll view (`components/Pager.tsx`, pages in `components/pages/`); jump with `usePager().goTo('squad')`, not router links. Pages get `active` instead of `useFocusEffect`. Each page does ONE main thing (log / grid / timer / plant / you) and fits one phone screen; no stacks of cards, no explanatory paragraphs. Anything more goes on a detail screen one tap away (`DetailScreen`).
 - No leaderboards or rankings. Comparison is a known risk for this app; keep social features encouraging (kudos), not competitive.

@@ -115,3 +115,27 @@ export function minutesLabel(min: number): string {
   const m = min % 60;
   return m ? `${h} h ${m} min` : `${h} h`;
 }
+
+/** What to call a session, from its length: "Deep focus" for 50 min, etc. */
+export function sessionName(mode: Mode, minutes: number): string {
+  if (mode === 'short') return 'Short break';
+  if (mode === 'long') return 'Long break';
+  if (minutes <= 15) return 'Quick sprint';
+  if (minutes <= 25) return 'Pomodoro';
+  if (minutes <= 45) return 'Focus block';
+  if (minutes <= 60) return 'Deep focus';
+  return 'Deep work';
+}
+
+/** The settings key the dial edits in each mode. */
+export const MODE_KEY: Record<Mode, 'focus' | 'short' | 'long'> = { focus: 'focus', short: 'short', long: 'long' };
+
+/**
+ * Dial maths: minutes after turning the wheel by `turns` (1 = a full circle = 60 min),
+ * snapped to the mode's step and clamped to its range.
+ */
+export function dialMinutes(start: number, turns: number, key: 'focus' | 'short' | 'long'): number {
+  const [min, max, step] = LIMITS[key];
+  const raw = start + turns * 60;
+  return Math.min(max, Math.max(min, Math.round(raw / step) * step));
+}

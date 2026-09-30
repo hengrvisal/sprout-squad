@@ -1,22 +1,23 @@
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Haptics from 'expo-haptics';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useCelebrate } from '@/components/Celebrate';
 import { CategoryPicker } from '@/components/CategoryPicker';
+import { FocusDial } from '@/components/FocusDial';
 import { Icon, IconName } from '@/components/Icon';
 import { Screen } from '@/components/Screen';
 import { Chunky } from '@/components/ui';
 import { useAuth } from '@/hooks/auth';
 import { useEntries } from '@/hooks/entries';
 import { useFocus } from '@/hooks/focus';
+import { usePager } from '@/hooks/pager';
 import { useSessions } from '@/hooks/sessions';
 import { useSquads } from '@/hooks/squads';
 import { categoryEmoji } from '@/lib/categories';
 import { streak, ymd } from '@/lib/dates';
-import { clock, Mode, MODE_LABEL, minutesLabel, progress } from '@/lib/pomodoro';
+import { clock, dialMinutes, Mode, MODE_KEY, minutesLabel, progress, sessionName } from '@/lib/pomodoro';
 import { namesLabel } from '@/lib/sessions';
 import { fonts, radius, softShadow, useColors } from '@/theme/tokens';
 
@@ -25,45 +26,6 @@ const MODE_COLORS: Record<Mode, [string, string]> = {
   short: ['#9CC3CC', '#7FA6B5'], // mist
   long: ['#A9C996', '#7FA87A'], // sage
 };
-
-/** The ring: soft track, gradient arc, time in the middle. */
-function Ring({ value, mode, size, children }: { value: number; mode: Mode; size: number; children: React.ReactNode }) {
-  const c = useColors();
-  const stroke = 14;
-  const r = size / 2 - stroke;
-  const len = 2 * Math.PI * r;
-  const v = Math.max(0.0001, Math.min(1, value));
-  const [a, b] = MODE_COLORS[mode];
-  const angle = v * 2 * Math.PI - Math.PI / 2;
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        <Defs>
-          <LinearGradient id="focusArc" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={a} />
-            <Stop offset="1" stopColor={b} />
-          </LinearGradient>
-        </Defs>
-        <Circle cx={size / 2} cy={size / 2} r={r - stroke / 2 - 6} fill={c.glassStrong} />
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={c.soft} strokeWidth={stroke} fill="none" />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke="url(#focusArc)"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          fill="none"
-          strokeDasharray={`${len} ${len}`}
-          strokeDashoffset={len * (1 - v)}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-        {value > 0.002 && <Circle cx={size / 2 + r * Math.cos(angle)} cy={size / 2 + r * Math.sin(angle)} r={stroke / 2 + 3} fill="#FFFFFF" />}
-      </Svg>
-      {children}
-    </View>
-  );
-}
 
 function RoundButton({ icon, label, onPress, big }: { icon: IconName; label: string; onPress: () => void; big?: boolean }) {
   const c = useColors();
@@ -84,8 +46,8 @@ function RoundButton({ icon, label, onPress, big }: { icon: IconName; label: str
   );
 }
 
-/** Focus: just the timer. Settings behind the gear; a finished round offers to log a win. */
-export default function FocusTab() {
+/** Focus: just the timer. Turn the dial to set it, tap it to start. A finished round offers to log a win. */
+export function FocusPage({ active }: { active: boolean }) {
   const c = useColors();
   const f = useFocus();
   const celebrate = useCelebrate();
@@ -96,18 +58,14 @@ export default function FocusTab() {
   const { session } = useAuth();
   const me = session?.user.id;
   const [winText, setWinText] = useState('');
-  const [visible, setVisible] = useState(false);
+  const { setLocked } = usePager();
+  const [dragging, setDragging] = useState(false);
   const [logErr, setLogErr] = useState<string | null>(null);
   const running = f.timer.status === 'running';
   const size = Math.min(width - 90, 290);
 
   // keep the screen on while a round is running and you're looking at it
-  useFocusEffect(
-    useCallback(() => {
-      setVisible(true);
-      return () => setVisible(false);
-    }, []),
-  );
+  const visible = active;
   useEffect(() => {
     if (!(running && visible)) return;
     activateKeepAwakeAsync('focus').catch(() => {});
@@ -152,13 +110,34 @@ export default function FocusTab() {
 
   const inSession = live ? live.members.filter((x) => !x.left_at).map((x) => (x.user_id === me ? 'You' : x.name)) : [];
   const doneInCycle = f.timer.done % f.settings.rounds;
-  const status = f.timer.status === 'paused' ? 'Paused' : running ? (f.timer.mode === 'focus' ? 'Stay with it' : 'Breathe') : 'Ready when you are';
+  const mode = f.timer.mode;
+  const key = MODE_KEY[mode];
+  const length = f.settings[key];
+  const idle = f.timer.status === 'idle';
+  const name = sessionName(mode, length);
+  const status = dragging
+    ? `${name} · ${minutesLabel(length)}`
+    : f.timer.status === 'paused'
+      ? 'Paused · tap the dial to resume'
+      : running
+        ? mode === 'focus'
+          ? 'Stay with it · tap to pause'
+          : 'Breathe · tap to pause'
+        : 'Drag the ring to set · tap to start';
+
+  function onTurn(turns: number) {
+    const next = dialMinutes(0, turns, key);
+    if (next !== f.settings[key]) {
+      Haptics.selectionAsync().catch(() => {});
+      f.updateSettings({ [key]: next });
+    }
+  }
 
   return (
     <Screen
       gradient={f.timer.mode === 'focus' ? 'focus' : 'rest'}
       title="Focus"
-      subtitle={f.stats.rounds ? `🍅 ${f.stats.rounds} today · ${minutesLabel(f.stats.minutes)}` : 'Pomodoro'}
+      subtitle={`${name} · ${minutesLabel(length)}`}
       right={
         <Pressable
           accessibilityRole="button"
@@ -215,20 +194,36 @@ export default function FocusTab() {
       ) : (
         /* the timer */
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 28, paddingTop: 8 }}>
-          <Ring value={progress(f.timer, f.settings)} mode={f.timer.mode} size={size}>
-            <Text style={{ fontFamily: fonts.bodyBold, fontSize: 13, letterSpacing: 1, textTransform: 'uppercase', color: c.ink3 }}>{MODE_LABEL[f.timer.mode]}</Text>
+          <FocusDial
+            size={size}
+            value={idle ? Math.min(1, length / 60) : progress(f.timer, f.settings)}
+            colors={MODE_COLORS[mode]}
+            editable={idle}
+            minutes={length}
+            onTurn={onTurn}
+            onTap={toggle}
+            onDragChange={(d) => {
+              setDragging(d);
+              setLocked(d);
+            }}
+          >
+            <Text style={{ fontFamily: fonts.bodyBold, fontSize: 12.5, letterSpacing: 1, textTransform: 'uppercase', color: c.ink3 }}>{name}</Text>
             <Text
               accessibilityLabel={`${Math.ceil(f.left / 60)} minutes left`}
-              style={{ fontFamily: fonts.display, fontSize: 64, lineHeight: 70, color: c.ink, letterSpacing: -2, fontVariant: ['tabular-nums'] }}
+              style={{ fontFamily: fonts.display, fontSize: 62, lineHeight: 68, color: c.ink, letterSpacing: -2, fontVariant: ['tabular-nums'] }}
             >
               {clock(f.left)}
             </Text>
-            <View style={{ flexDirection: 'row', gap: 7 }} accessibilityLabel={`Round ${doneInCycle + 1} of ${f.settings.rounds}`}>
-              {Array.from({ length: f.settings.rounds }, (_, i) => (
-                <View key={i} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i < doneInCycle ? MODE_COLORS.focus[1] : c.soft }} />
-              ))}
-            </View>
-          </Ring>
+            {length > 60 && idle ? (
+              <Text style={{ fontFamily: fonts.bodySemi, fontSize: 12, color: c.ink3 }}>+{length - 60} min past a full turn</Text>
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 7 }} accessibilityLabel={`Round ${doneInCycle + 1} of ${f.settings.rounds}`}>
+                {Array.from({ length: f.settings.rounds }, (_, i) => (
+                  <View key={i} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i < doneInCycle ? MODE_COLORS.focus[1] : c.soft }} />
+                ))}
+              </View>
+            )}
+          </FocusDial>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 28 }}>
             <RoundButton icon="reset" label="Reset" onPress={f.reset} />
@@ -247,9 +242,16 @@ export default function FocusTab() {
               style={{ alignSelf: 'stretch', textAlign: 'center', fontFamily: fonts.bodySemi, fontSize: 17, color: c.ink, paddingVertical: 8 }}
             />
             <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 13, color: c.ink3 }}>{status}</Text>
+            {f.stats.rounds > 0 && (
+              <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: c.ink2, marginTop: 6 }}>
+                🍅 {f.stats.rounds} {f.stats.rounds === 1 ? 'round' : 'rounds'} today · {minutesLabel(f.stats.minutes)} focused
+              </Text>
+            )}
             {selected && !live && f.timer.status === 'idle' && (
               <Pressable accessibilityRole="button" onPress={() => router.push('/session')} hitSlop={8} style={{ marginTop: 10 }}>
-                <Text style={{ fontFamily: fonts.bodySemi, fontSize: 13.5, color: c.ink2 }}>🌿 Focus with {selected.name} instead ›</Text>
+                <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 13.5, color: c.ink2 }}>
+                  🌿 Focus with <Text style={{ fontFamily: fonts.bodyBold, color: c.ink }}>{selected.name}</Text> instead ›
+                </Text>
               </Pressable>
             )}
           </View>

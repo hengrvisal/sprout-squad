@@ -53,3 +53,35 @@ export function greeting(d = new Date()): string {
   if (h < 18) return 'Good afternoon';
   return 'Good evening';
 }
+
+/**
+ * One encouraging line for a month. Compares only with your own past months, never others.
+ */
+export function monthCheer(
+  counts: Record<string, number>,
+  y: number,
+  m: number,
+  today = new Date(),
+): { emoji: string; text: string } {
+  const green = (yy: number, mm: number) => {
+    const prefix = `${yy}-${String(mm + 1).padStart(2, '0')}-`;
+    return Object.entries(counts).filter(([k, n]) => k.startsWith(prefix) && n > 0).length;
+  };
+  const g = green(y, m);
+  const isCurrent = y === today.getFullYear() && m === today.getMonth();
+  const prev = m === 0 ? green(y - 1, 11) : green(y, m - 1);
+  const elapsed = isCurrent ? today.getDate() : new Date(y, m + 1, 0).getDate();
+  let best = 0;
+  for (let i = 1; i <= 12; i++) {
+    const d = new Date(y, m - i, 1);
+    best = Math.max(best, green(d.getFullYear(), d.getMonth()));
+  }
+  if (g === 0) return isCurrent ? { emoji: '🌱', text: 'A fresh month. Your first green square is one log away.' } : { emoji: '🍃', text: 'A quiet month. That’s allowed.' };
+  if (g === elapsed && elapsed >= 3) return { emoji: '🌟', text: isCurrent ? 'Every single day green so far. Unreal.' : 'Every day green. A perfect month.' };
+  if (g > best && best > 0) return { emoji: '🏆', text: isCurrent ? 'Already your best month this year!' : 'Your best month this year!' };
+  if (isCurrent && prev > g && prev - g <= 3) return { emoji: '🎯', text: `${prev - g + 1} more green ${prev - g + 1 === 1 ? 'day' : 'days'} to beat last month.` };
+  if (isCurrent && g >= prev && prev > 0) return { emoji: '📈', text: 'Ahead of last month. Nice momentum.' };
+  const pct = Math.round((g / elapsed) * 100);
+  if (pct >= 60) return { emoji: '💪', text: `Green on ${pct}% of days. Solid rhythm.` };
+  return { emoji: '🌿', text: `${g} green ${g === 1 ? 'day' : 'days'}. Every one of them counts.` };
+}

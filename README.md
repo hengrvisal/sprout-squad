@@ -50,7 +50,7 @@ src/
     _layout.tsx        fonts, providers, auth guard
     sign-in.tsx        email → one-time code
     onboarding.tsx     intro slides
-    (tabs)/            Today · Month · Focus · Squad · Me: one main thing each, swipe or tap between them
+    (tabs)/index.tsx   the pager: Today · Month · Focus · Squad · Me (components/pages/), swipe or tap
     day.tsx, month.tsx                      Today details
     plant.tsx, friend/[id].tsx, squad-manage.tsx   Squad details
     profile.tsx, account.tsx                Me details
@@ -86,6 +86,7 @@ RLS: you write only your own rows. You can read your squadmates' profiles and en
 - [x] **Squad plant (slice 1)**: shared plant with 7 stages, growth + health computed server-side, weekly rotating squad goal with a 20% growth spurt, anti-spam and no-backdating rules
 - [x] **Feel pass**: rewarding log composer (daily prompt, category palette, celebration burst + haptics), win stickers, chunky grid with a pulsing today cell, garden hero for the squad plant, swipe between tabs
 - [x] **Minimal pass**: five pages with one main thing each, soft gradient look (frosted cards, no hard shadows), simpler timer settings (presets + custom)
+- [x] **TestFlight feedback pass**: native pager (smooth swipes), streak sheet, animated month with day details, turnable timer dial with session names, painted plant in a living garden (bees, butterflies, fireflies), Me with level ring, year graph and badges
 - [x] **Focus tab**: pomodoro timer (focus / short / long, presets, auto-start, notification when a phase ends, survives closing the app), log the round as a win
 - [ ] **Squad plant (slice 2)**: seasons + greenhouse, collectibles for weekly goals, squad-voted goals, 'watering' moment when you log
 - [ ] **Phase 3b · Dev build + push**: EAS development build, push for kudos received and a gentle evening reminder

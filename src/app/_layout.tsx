@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CelebrateProvider } from '@/components/Celebrate';
 import { AuthProvider, useAuth } from '@/hooks/auth';
 import { FocusProvider } from '@/hooks/focus';
+import { PagerProvider } from '@/hooks/pager';
 import { EntriesProvider } from '@/hooks/entries';
 import { NotificationsProvider } from '@/hooks/notifications';
 import { SessionsProvider } from '@/hooks/sessions';
@@ -81,8 +82,10 @@ export default function RootLayout() {
                 <NotificationsProvider>
                   <CelebrateProvider>
                     <FocusProvider>
-                      <StatusBar style="auto" />
-                      <RootStack />
+                      <PagerProvider>
+                        <StatusBar style="auto" />
+                        <RootStack />
+                      </PagerProvider>
                     </FocusProvider>
                   </CelebrateProvider>
                 </NotificationsProvider>

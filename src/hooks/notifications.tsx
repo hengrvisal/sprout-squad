@@ -14,6 +14,7 @@ import {
 } from '@/lib/notifications';
 import { DEFAULT_REMINDER, ReminderSettings } from '@/lib/reminders';
 import { useAuth } from './auth';
+import { pageForUrl, usePager } from './pager';
 import { useEntries } from './entries';
 import { ProfilePatch, useProfile } from './profile';
 
@@ -127,16 +128,17 @@ export function useNotifications() {
 }
 
 /**
- * Acts on notification taps and on the "Log a win" typed reply. Mounted inside the tabs,
+ * Acts on notification taps and on the "Log a win" typed reply. Mounted inside the pager,
  * so navigation is ready (this also covers the app being launched by the tap).
  */
 export function useNotificationResponses() {
   const { add, today } = useEntries();
+  const { goTo } = usePager();
   const handled = useRef(new Set<string>());
-  const latest = useRef({ add, category: today[0]?.category ?? 'study' });
+  const latest = useRef({ add, category: today[0]?.category ?? 'study', goTo });
   useEffect(() => {
-    latest.current = { add, category: today[0]?.category ?? 'study' };
-  }, [add, today]);
+    latest.current = { add, category: today[0]?.category ?? 'study', goTo };
+  }, [add, today, goTo]);
 
   useEffect(() => {
     if (!native) return;
@@ -151,10 +153,17 @@ export function useNotificationResponses() {
       if (r.actionIdentifier === LOG_ACTION && text) {
         latest.current.add(text.slice(0, 90), latest.current.category).catch(() => {});
         router.navigate('/');
+        latest.current.goTo('today');
         return;
       }
       const url = r.notification.request.content.data?.url;
-      if (typeof url === 'string' && url.startsWith('/')) router.navigate(url as never);
+      if (typeof url !== 'string' || !url.startsWith('/')) return;
+      // the five main pages live in one pager; everything else is a normal route
+      const page = pageForUrl(url);
+      if (page) {
+        router.navigate('/');
+        latest.current.goTo(page, false);
+      } else router.navigate(url as never);
     };
     handle(Notifications.getLastNotificationResponse());
     const sub = Notifications.addNotificationResponseReceivedListener(handle);

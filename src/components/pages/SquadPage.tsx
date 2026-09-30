@@ -1,5 +1,5 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { Screen } from '@/components/Screen';
@@ -15,18 +15,16 @@ import { fonts, useColors } from '@/theme/tokens';
  * Squad does one thing: show the plant you grow together.
  * Tap the name to switch/manage squads, a face to visit a friend, the goal for plant details.
  */
-export default function SquadTab() {
+export function SquadPage({ active }: { active: boolean }) {
   const c = useColors();
   const { session } = useAuth();
   const me = session?.user.id;
   const { squads, selected, members, loading, error, refresh, plant } = useSquads();
   const [pulling, setPulling] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [refresh]),
-  );
+  useEffect(() => {
+    if (active) refresh();
+  }, [active, refresh]);
 
   async function onPull() {
     setPulling(true);

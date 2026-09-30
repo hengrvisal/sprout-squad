@@ -11,12 +11,19 @@ export function MonthGrid({
   counts,
   mini = false,
   gap = mini ? 3 : 6,
+  animate = false,
+  selected,
+  onPressDay,
 }: {
   y: number;
   m: number;
   counts: DayCounts;
   mini?: boolean;
   gap?: number;
+  /** Cells pop in one after another (remount with a new key to replay). */
+  animate?: boolean;
+  selected?: string | null;
+  onPressDay?: (key: string) => void;
 }) {
   const c = useColors();
   const cells = monthCells(y, m, counts);
@@ -49,7 +56,28 @@ export function MonthGrid({
                 </View>
               );
             }
-            return <DayCell key={ci} cell={cell} mini={mini} r={r} />;
+            const cellEl = <DayCell cell={cell} mini={mini} r={r} selected={selected === cell.key} />;
+            const tappable = onPressDay ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${cell.key}: ${plural(cell.count, 'thing', 'things')} done. Open`}
+                onPress={() => onPressDay(cell.key)}
+                style={({ pressed }) => ({ flex: 1, transform: [{ scale: pressed ? 0.9 : 1 }] })}
+              >
+                {cellEl}
+              </Pressable>
+            ) : (
+              cellEl
+            );
+            return animate ? (
+              <PopIn key={ci} delay={(ri * 7 + ci) * 16}>
+                {tappable}
+              </PopIn>
+            ) : (
+              <View key={ci} style={{ flex: 1 }}>
+                {tappable}
+              </View>
+            );
           })}
         </View>
       ))}
@@ -63,7 +91,16 @@ type Day = Extract<ReturnType<typeof monthCells>[number], { kind: 'day' }>;
  * One day. Green days are chunky (ink edge + a little shine). Today pulses gently while
  * it's still empty, as an invitation, and pops each time its count goes up.
  */
-function DayCell({ cell, mini, r }: { cell: Day; mini: boolean; r: number }) {
+/** Springs a cell in after `delay` ms. */
+function PopIn({ delay, children }: { delay: number; children: React.ReactNode }) {
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.spring(v, { toValue: 1, delay, useNativeDriver: true, speed: 14, bounciness: 10 }).start();
+  }, [v, delay]);
+  return <Animated.View style={{ flex: 1, opacity: v, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }] }}>{children}</Animated.View>;
+}
+
+function DayCell({ cell, mini, r, selected }: { cell: Day; mini: boolean; r: number; selected?: boolean }) {
   const c = useColors();
   const lit = cell.level > 0;
   const body = (
@@ -75,8 +112,8 @@ function DayCell({ cell, mini, r }: { cell: Day; mini: boolean; r: number }) {
         borderRadius: r,
         backgroundColor: c.grid[cell.level],
         padding: mini ? 0 : 5,
-        borderWidth: cell.isToday ? 2 : 0,
-        borderColor: lit ? c.ink : c.tang,
+        borderWidth: selected ? 2.5 : cell.isToday ? 2 : 0,
+        borderColor: selected ? c.tang : lit ? c.ink : c.tang,
       }}
     >
       {!mini && (

@@ -101,3 +101,47 @@ export function monthStats(counts: DayCounts, y: number, m: number): { greenDays
 export function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
+
+/** Longest run of consecutive active days anywhere in `counts`. */
+export function longestStreak(counts: DayCounts): number {
+  const days = Object.keys(counts)
+    .filter((k) => counts[k] > 0)
+    .sort();
+  let best = 0;
+  let run = 0;
+  let prev: string | null = null;
+  for (const k of days) {
+    const [y, m, d] = k.split('-').map(Number);
+    const prevKey = ymd(addDays(new Date(y, m - 1, d), -1));
+    run = prev === prevKey ? run + 1 : 1;
+    best = Math.max(best, run);
+    prev = k;
+  }
+  return best;
+}
+
+/** The last `n` days ending today, oldest first, with counts. */
+export function lastDays(counts: DayCounts, n: number, today = new Date()): { key: DayKey; count: number; weekday: number }[] {
+  return Array.from({ length: n }, (_, i) => {
+    const d = addDays(startOfDay(today), i - (n - 1));
+    return { key: ymd(d), count: counts[ymd(d)] ?? 0, weekday: (d.getDay() + 6) % 7 };
+  });
+}
+
+/** Weeks (Monday first) covering Jan 1 → today, for the year graph. Future/other-year days are null. */
+export function yearWeeks(counts: DayCounts, today = new Date()): ({ key: DayKey; count: number } | null)[][] {
+  const t = startOfDay(today);
+  const jan1 = new Date(t.getFullYear(), 0, 1);
+  const start = addDays(jan1, -((jan1.getDay() + 6) % 7));
+  const weeks: ({ key: DayKey; count: number } | null)[][] = [];
+  for (let d = start; d <= t; d = addDays(d, 7)) {
+    weeks.push(
+      Array.from({ length: 7 }, (_, i) => {
+        const day = addDays(d, i);
+        if (day < jan1 || day > t) return null;
+        return { key: ymd(day), count: counts[ymd(day)] ?? 0 };
+      }),
+    );
+  }
+  return weeks;
+}

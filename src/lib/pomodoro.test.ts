@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { advance, clampSetting, clock, DEFAULT_SETTINGS as S, initialState, minutesLabel, pause, progress, secondsLeft, start } from './pomodoro';
+import { advance, clampSetting, dialMinutes, sessionName, clock, DEFAULT_SETTINGS as S, initialState, minutesLabel, pause, progress, secondsLeft, start } from './pomodoro';
 
 const T0 = 1_000_000;
 
@@ -48,5 +48,22 @@ describe('pomodoro', () => {
     expect(minutesLabel(75)).toBe('1 h 15 min');
     expect(clampSetting('focus', 200)).toBe(120);
     expect(clampSetting('rounds', 1)).toBe(2);
+  });
+});
+
+describe('dial + names', () => {
+  it('names sessions by length', () => {
+    expect(sessionName('focus', 25)).toBe('Pomodoro');
+    expect(sessionName('focus', 50)).toBe('Deep focus');
+    expect(sessionName('focus', 90)).toBe('Deep work');
+    expect(sessionName('focus', 10)).toBe('Quick sprint');
+    expect(sessionName('short', 5)).toBe('Short break');
+  });
+  it('turns, snaps and clamps', () => {
+    expect(dialMinutes(25, 0.25, 'focus')).toBe(40);
+    expect(dialMinutes(25, 0.03, 'focus')).toBe(25);
+    expect(dialMinutes(25, -1, 'focus')).toBe(5);
+    expect(dialMinutes(25, 3, 'focus')).toBe(120);
+    expect(dialMinutes(5, 0.05, 'short')).toBe(8);
   });
 });

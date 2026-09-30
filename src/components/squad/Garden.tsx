@@ -2,10 +2,11 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useId, useState } from 'react';
 import { Animated, Easing, Pressable, Text, useColorScheme, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import type { PlantData } from '@/lib/plant';
 import { healthLabel, stageFor } from '@/lib/plant';
 import { fonts, softShadow, useColors } from '@/theme/tokens';
+import { Bee, Butterfly, Firefly, Mote, SunRays } from './Critters';
 import { Plant } from './Plant';
 
 function Cloud({ top, size, duration, delay, width }: { top: number; size: number; duration: number; delay: number; width: number }) {
@@ -45,8 +46,8 @@ export function Garden({ plant, seedKey, faces }: { plant: PlantData; seedKey: s
   const stage = stageFor(plant.growth);
   const health = healthLabel(plant.health, plant.drooping);
   const toneColor = health.tone === 'good' ? c.accent : health.tone === 'ok' ? c.sky : c.tang;
-  const H = 330;
-  const plantSize = 230;
+  const H = 340;
+  const plantSize = 236;
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -66,9 +67,14 @@ export function Garden({ plant, seedKey, faces }: { plant: PlantData; seedKey: s
     Animated.spring(poke, { toValue: 0, useNativeDriver: true, speed: 6, bounciness: 18 }).start();
   }
 
-  const sky: [string, string] = dark ? ['#0F1A24', '#22323A'] : ['#BFDCE6', '#EEF4EC'];
-  const hillBack = dark ? '#1F3A28' : '#C9DEAE';
-  const hillFront = dark ? '#284A31' : '#A2C78A';
+  // a bright summer meadow by day, a firefly-lit one by night
+  const sky: [string, string] = dark ? ['#0B1530', '#23385A'] : ['#6EC3F0', '#D9F1FF'];
+  const far: [string, string] = dark ? ['#1A3326', '#15291F'] : ['#A8DB86', '#8BCB6C'];
+  const near: [string, string] = dark ? ['#20472D', '#183822'] : ['#7ACB5B', '#4FA83F'];
+  const treeC = dark ? '#16301F' : '#5DAA4A';
+  const flowers = ['#FFFFFF', '#FFD84D', '#F59BC0', '#B99CF0'];
+  const thriving = !plant.drooping;
+  const sunX = width - 58;
 
   return (
     <View style={[{ borderRadius: 28, overflow: 'hidden', backgroundColor: c.glassStrong }, softShadow(c, 1.4)]}>
@@ -79,35 +85,80 @@ export function Garden({ plant, seedKey, faces }: { plant: PlantData; seedKey: s
               <Stop offset="0" stopColor={sky[0]} />
               <Stop offset="1" stopColor={sky[1]} />
             </LinearGradient>
+            <LinearGradient id={`far${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={far[0]} />
+              <Stop offset="1" stopColor={far[1]} />
+            </LinearGradient>
+            <LinearGradient id={`near${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={near[0]} />
+              <Stop offset="1" stopColor={near[1]} />
+            </LinearGradient>
+            <RadialGradient id={`glow${uid}`} cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor={dark ? '#FFF3B8' : '#FFF4B0'} stopOpacity={dark ? 0.35 : 0.8} />
+              <Stop offset="1" stopColor={dark ? '#FFF3B8' : '#FFF4B0'} stopOpacity={0} />
+            </RadialGradient>
           </Defs>
           <Rect x={0} y={0} width={width} height={H} fill={`url(#sky${uid})`} />
+          <Circle cx={sunX} cy={58} r={70} fill={`url(#glow${uid})`} />
           {dark ? (
             <>
               {[
-                [0.12, 34],
-                [0.3, 80],
-                [0.55, 24],
-                [0.72, 70],
-                [0.9, 40],
-                [0.44, 120],
+                [0.08, 30],
+                [0.22, 74],
+                [0.36, 22],
+                [0.5, 58],
+                [0.63, 18],
+                [0.3, 118],
+                [0.12, 100],
+                [0.56, 104],
               ].map(([fx, y], i) => (
-                <Circle key={i} cx={width * fx} cy={y} r={1.6} fill="#FFFFFF" opacity={0.7} />
+                <Circle key={i} cx={width * fx} cy={y} r={i % 3 ? 1.3 : 1.9} fill="#FFFFFF" opacity={0.75} />
               ))}
-              <Circle cx={width - 56} cy={56} r={20} fill="#FFF3B8" />
-              <Circle cx={width - 48} cy={50} r={17} fill={sky[0]} />
+              <Circle cx={sunX} cy={58} r={21} fill="#FFF3B8" />
+              <Circle cx={sunX + 9} cy={51} r={18} fill={sky[0]} />
             </>
           ) : (
-            <>
-              <Circle cx={width - 56} cy={56} r={44} fill="#F3DC9A" opacity={0.3} />
-              <Circle cx={width - 56} cy={56} r={24} fill="#F3D98B" />
-            </>
+            <Circle cx={sunX} cy={58} r={24} fill="#FFD84D" />
           )}
-          <Path d={`M0 ${H - 80} C ${width * 0.3} ${H - 130}, ${width * 0.55} ${H - 70}, ${width} ${H - 115} L ${width} ${H} L 0 ${H} Z`} fill={hillBack} />
-          <Path d={`M0 ${H - 44} C ${width * 0.35} ${H - 68}, ${width * 0.7} ${H - 34}, ${width} ${H - 58} L ${width} ${H} L 0 ${H} Z`} fill={hillFront} />
+          {/* far hill with a little tree line */}
+          <Path d={`M0 ${H - 88} C ${width * 0.28} ${H - 140}, ${width * 0.58} ${H - 78}, ${width} ${H - 124} L ${width} ${H} L 0 ${H} Z`} fill={`url(#far${uid})`} />
+          {[0.1, 0.17, 0.78, 0.86, 0.93].map((fx, i) => {
+            const x = width * fx;
+            const yBase = H - (fx < 0.5 ? 106 + (fx - 0.1) * 120 : 104 + (fx - 0.78) * 60);
+            const r = i % 2 ? 11 : 14;
+            return (
+              <G key={i}>
+                <Rect x={x - 1.5} y={yBase - 4} width={3} height={10} fill={dark ? '#0F2016' : '#6B5237'} />
+                <Circle cx={x} cy={yBase - r} r={r} fill={treeC} />
+                <Circle cx={x - r * 0.35} cy={yBase - r * 1.25} r={r * 0.55} fill="#FFFFFF" opacity={dark ? 0.03 : 0.12} />
+              </G>
+            );
+          })}
+          {/* near meadow */}
+          <Path d={`M0 ${H - 48} C ${width * 0.35} ${H - 74}, ${width * 0.68} ${H - 36}, ${width} ${H - 62} L ${width} ${H} L 0 ${H} Z`} fill={`url(#near${uid})`} />
+          {/* wildflowers and grass tufts */}
+          {Array.from({ length: 16 }, (_, i) => {
+            const fx = ((i * 0.618) % 1) * 0.94 + 0.03;
+            if (fx > 0.3 && fx < 0.7) return null; // keep the middle clear for the pot
+            const x = width * fx;
+            const y = H - 30 + ((i * 37) % 22);
+            return (
+              <G key={i}>
+                <Path d={`M${x} ${y + 6} q -3 -8 -6 -11 M${x} ${y + 6} q 0 -9 1 -13 M${x} ${y + 6} q 3 -7 7 -10`} stroke={dark ? '#2F5F3A' : '#3E8F35'} strokeWidth={1.6} fill="none" strokeLinecap="round" />
+                {i % 2 === 0 && (
+                  <>
+                    <Circle cx={x + 1} cy={y - 7} r={3.2} fill={flowers[i % flowers.length]} opacity={dark ? 0.5 : 1} />
+                    <Circle cx={x + 1} cy={y - 7} r={1.2} fill="#F2B632" opacity={dark ? 0.5 : 1} />
+                  </>
+                )}
+              </G>
+            );
+          })}
         </Svg>
 
-        <Cloud top={44} size={48} duration={40000} delay={0} width={width} />
-        <Cloud top={100} size={32} duration={54000} delay={9000} width={width} />
+        {!dark && <SunRays x={sunX} y={58} r={24} />}
+        <Cloud top={40} size={50} duration={42000} delay={0} width={width} />
+        <Cloud top={96} size={34} duration={56000} delay={12000} width={width} />
 
         <Pressable
           accessibilityRole="button"
@@ -128,6 +179,26 @@ export function Garden({ plant, seedKey, faces }: { plant: PlantData; seedKey: s
             <Plant stage={stage.index} progress={stage.progress} health={plant.health} drooping={plant.drooping} members={plant.members} seedKey={seedKey} size={plantSize} />
           </Animated.View>
         </Pressable>
+        {/* life: bees and a butterfly by day, fireflies by night; pollen when it's thriving */}
+        {thriving &&
+          (dark ? (
+            <>
+              <Firefly x={width * 0.25} y={H - 120} duration={6000} />
+              <Firefly x={width * 0.72} y={H - 150} duration={7400} delay={1200} />
+              <Firefly x={width * 0.5} y={H - 210} duration={8200} delay={2600} />
+              <Firefly x={width * 0.85} y={H - 90} duration={6800} delay={600} />
+            </>
+          ) : (
+            <>
+              <Bee cx={width / 2} cy={H - 170} rx={Math.min(110, width * 0.32)} ry={30} duration={9000} />
+              {stage.index >= 3 && <Bee cx={width / 2 + 10} cy={H - 140} rx={70} ry={22} duration={7000} delay={1500} scale={0.85} />}
+              <Butterfly cx={width * 0.28} cy={H - 110} rx={40} ry={24} duration={11000} />
+            </>
+          ))}
+        {thriving &&
+          [0.35, 0.47, 0.58, 0.66].map((fx, i) => (
+            <Mote key={i} x={width * fx} bottom={H - 70} height={140} duration={5200 + i * 900} delay={i * 1300} />
+          ))}
         {hearts > 0 && <Heart key={hearts} left={width / 2} />}
       </View>
 
