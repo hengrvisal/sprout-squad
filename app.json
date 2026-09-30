@@ -50,6 +50,13 @@
         }
       ]
     ],
-    "scheme": "sproutsquad"
+    "scheme": "sproutsquad",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8ee40a08-16b4-45f7-88d4-0d862d4e6645"
+      }
+    },
+    "owner": "visal19"
   }
 }
