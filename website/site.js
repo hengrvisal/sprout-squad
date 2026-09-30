@@ -469,8 +469,10 @@
       const grow = el('g', { class: 'grow' }, at);
       grow.style.setProperty('--delay', `${(start + dur * 0.92).toFixed(2)}s`);
       const b = main ? 34 : 24;
-      el('rect', { x: -b / 2 + 4, y: -b / 2 + 5, width: b, height: b, rx: b * 0.28, fill: 'var(--line)' }, grow);
+      // soft contact shadow, the glazed square, then a highlight across its top
+      el('rect', { x: -b / 2 + 1, y: -b / 2 + 5, width: b, height: b, rx: b * 0.28, class: 'bud-shadow' }, grow);
       el('rect', { x: -b / 2, y: -b / 2, width: b, height: b, rx: b * 0.28, class: 'bud', fill: BUDS[(pi + 2) % 4] }, grow);
+      el('rect', { x: -b / 2 + 2.5, y: -b / 2 + 2, width: b - 5, height: b * 0.4, rx: b * 0.2, class: 'bud-gloss' }, grow);
     });
   }
 
@@ -613,30 +615,55 @@
     }
 
     function drawPlant(m, drooping, prev) {
+      // Rendered, not flat: shaded leaves with veins, a textured clay pot, soft contact shadow.
       const f = (v) => v.toFixed(1);
-      let out = `<defs><linearGradient id="pl-leaf" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3DBB57"/><stop offset="1" stop-color="#9BE07A"/></linearGradient>
-        <linearGradient id="pl-dry" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8FA86A"/><stop offset="1" stop-color="#C9D49A"/></linearGradient></defs>`;
+      const EDGE = drooping ? '#4d5a33' : '#0f4a22';
+      const POT = 'M58 178 L142 178 L132 216 L68 216 Z';
+      let out = `<defs>
+        <linearGradient id="pl-leaf" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1f9a45"/><stop offset=".55" stop-color="#4cc864"/><stop offset="1" stop-color="#a6ec82"/></linearGradient>
+        <linearGradient id="pl-dry" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7d8f55"/><stop offset="1" stop-color="#cbd39a"/></linearGradient>
+        <linearGradient id="pl-under" x1="0" y1="-12" x2="0" y2="12" gradientUnits="userSpaceOnUse"><stop offset=".45" stop-color="#062a12" stop-opacity="0"/><stop offset="1" stop-color="#062a12" stop-opacity=".38"/></linearGradient>
+        <linearGradient id="pl-stem" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1c8a3d"/><stop offset=".5" stop-color="#57c96a"/><stop offset="1" stop-color="#1c8a3d"/></linearGradient>
+        <linearGradient id="pl-pot" x1="58" y1="0" x2="142" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#b8480c"/><stop offset=".28" stop-color="#f07a2c"/><stop offset=".45" stop-color="#ff9a52"/><stop offset=".72" stop-color="#e2661c"/><stop offset="1" stop-color="#9a3a08"/></linearGradient>
+        <linearGradient id="pl-rim" x1="0" y1="166" x2="0" y2="182" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffc08a"/><stop offset=".45" stop-color="#f58a45"/><stop offset="1" stop-color="#c55614"/></linearGradient>
+        <radialGradient id="pl-soil" cx=".5" cy=".35" r=".7"><stop offset="0" stop-color="#6b4a33"/><stop offset="1" stop-color="#2e1d12"/></radialGradient>
+        <radialGradient id="pl-fruit" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffc07a"/><stop offset=".45" stop-color="#ff7a1a"/><stop offset="1" stop-color="#c24a05"/></radialGradient>
+        <radialGradient id="pl-petal" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ffe0ee"/><stop offset="1" stop-color="#ff86b8"/></radialGradient>
+        <filter id="pl-clay" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="3" seed="7" result="n"/><feColorMatrix in="n" values="0 0 0 0 0.25  0 0 0 0 0.1  0 0 0 0 0.02  0 0 0 1.1 -0.35" result="g"/><feComposite in="g" in2="SourceAlpha" operator="in"/></filter>
+        <filter id="pl-blur" x="-50%" y="-200%" width="200%" height="500%"><feGaussianBlur stdDeviation="4"/></filter>
+      </defs>`;
       const fill = drooping ? 'url(#pl-dry)' : 'url(#pl-leaf)';
-      m.stems.forEach((d, i) => (out += `<path d="${d}" stroke="${INK}" stroke-width="${i ? 7 : 10}" stroke-linecap="round" fill="none"/>`));
-      m.stems.forEach((d, i) => (out += `<path d="${d}" stroke="${drooping ? '#8FA86A' : '#3DBB57'}" stroke-width="${i ? 3.5 : 5.5}" stroke-linecap="round" fill="none"/>`));
+      // contact shadow on the ground
+      out += '<ellipse cx="102" cy="217" rx="46" ry="5" fill="#000" opacity=".35" filter="url(#pl-blur)"/>';
+      m.stems.forEach((d, i) => (out += `<path d="${d}" stroke="${EDGE}" stroke-width="${i ? 5.5 : 8}" stroke-linecap="round" fill="none" opacity=".85"/>`));
+      m.stems.forEach((d, i) => (out += `<path d="${d}" stroke="${drooping ? '#8FA86A' : 'url(#pl-stem)'}" stroke-width="${i ? 3.4 : 5.4}" stroke-linecap="round" fill="none"/>`));
       m.leaves.forEach((l, i) => {
+        const member = MEMBER_COLORS[l.member % MEMBER_COLORS.length];
         out += `<g transform="translate(${f(l.x)} ${f(l.y)}) rotate(${f(l.angle)}) scale(${l.size.toFixed(2)})"><g class="lf${i >= prev.leaves ? ' new' : ''}">
-          <path d="${PLEAF}" fill="${fill}" stroke="${INK}" stroke-width="3.2" stroke-linejoin="round"/>
-          <path d="${PLEAF}" fill="none" stroke="${MEMBER_COLORS[l.member % MEMBER_COLORS.length]}" stroke-width="1.6" stroke-linejoin="round"/>
-          <path d="${PRIB}" fill="none" stroke="#157F3B" stroke-opacity="0.55" stroke-width="1.6" stroke-linecap="round"/></g></g>`;
+          <path d="${PLEAF}" fill="${fill}" stroke="${EDGE}" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="${PLEAF}" fill="url(#pl-under)"/>
+          <path d="${PLEAF}" fill="none" stroke="${member}" stroke-width="1.1" stroke-opacity=".9" stroke-linejoin="round"/>
+          <path d="${PRIB}" fill="none" stroke="#e9ffd9" stroke-opacity=".55" stroke-width="1.3" stroke-linecap="round"/>
+          <path d="M18,-3 L22,-10 M30,-5 L35,-12 M42,-5 L46,-10 M22,-2 L25,4 M34,-3 L38,3" stroke="#e9ffd9" stroke-opacity=".28" stroke-width=".9" stroke-linecap="round"/></g></g>`;
       });
       m.blossoms.forEach((b, i) => {
         const cls = `bl${i >= prev.blossoms ? ' new' : ''}`;
         out += b.kind === 'flower'
-          ? `<g transform="translate(${f(b.x)} ${f(b.y)})"><g class="${cls}">${[0, 72, 144, 216, 288].map((a) => `<circle cx="${f(7 * Math.cos((a * Math.PI) / 180))}" cy="${f(7 * Math.sin((a * Math.PI) / 180))}" r="5.5" fill="#FF9EC7" stroke="${INK}" stroke-width="1.6"/>`).join('')}<circle r="4" fill="#FFE45C" stroke="${INK}" stroke-width="1.6"/></g></g>`
-          : `<g transform="translate(${f(b.x)} ${f(b.y)})"><g class="${cls}"><circle cx="2" cy="2" r="9" fill="${INK}"/><circle r="9" fill="#FF7A1A" stroke="${INK}" stroke-width="2"/><circle cx="-3" cy="-3" r="2.5" fill="#fff" opacity="0.7"/></g></g>`;
+          ? `<g transform="translate(${f(b.x)} ${f(b.y)})"><g class="${cls}">${[0, 72, 144, 216, 288]
+              .map((a) => `<circle cx="${f(7 * Math.cos((a * Math.PI) / 180))}" cy="${f(7 * Math.sin((a * Math.PI) / 180))}" r="5.6" fill="url(#pl-petal)" stroke="#b84a7c" stroke-opacity=".5" stroke-width=".8"/>`)
+              .join('')}<circle r="3.8" fill="#ffd93b" stroke="#b58a00" stroke-opacity=".6" stroke-width=".8"/><circle cx="-1.2" cy="-1.2" r="1.2" fill="#fff" opacity=".7"/></g></g>`
+          : `<g transform="translate(${f(b.x)} ${f(b.y)})"><g class="${cls}"><circle r="9" fill="url(#pl-fruit)"/><path d="M0,-9 q2,-4 5,-5" stroke="#2d6b1f" stroke-width="1.6" fill="none" stroke-linecap="round"/><ellipse cx="-3.2" cy="-3.6" rx="2.6" ry="1.7" fill="#fff" opacity=".75" transform="rotate(-30 -3.2 -3.6)"/></g></g>`;
       });
-      out += '<ellipse cx="100" cy="167" rx="46" ry="8" fill="#4A3426"/>';
-      if (m.seed) out += `<g transform="translate(100 161) rotate(-20)"><ellipse rx="9" ry="6" fill="#C9924E" stroke="${INK}" stroke-width="2.2"/><path d="M-4,-1 C -1,-3 2,-3 5,-1" stroke="${INK}" stroke-width="1.4" fill="none"/></g>`;
-      out += `<path d="M58 178 L142 178 L132 216 L68 216 Z" fill="${INK}" transform="translate(4 4)"/>
-        <path d="M58 178 L142 178 L132 216 L68 216 Z" fill="#FF7A1A" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
-        <rect x="50" y="166" width="100" height="16" rx="6" fill="${INK}" transform="translate(4 4)"/>
-        <rect x="50" y="166" width="100" height="16" rx="6" fill="#FFA05A" stroke="${INK}" stroke-width="3"/>`;
+      out += '<ellipse cx="100" cy="168" rx="46" ry="8" fill="url(#pl-soil)"/>';
+      if (m.seed) out += `<g transform="translate(100 161) rotate(-20)"><ellipse rx="9" ry="6" fill="#c9924e"/><ellipse rx="9" ry="6" fill="url(#pl-under)"/><path d="M-4,-1 C -1,-3 2,-3 5,-1" stroke="#fff3d6" stroke-opacity=".6" stroke-width="1.2" fill="none"/></g>`;
+      // the pot: shaded body + clay texture + a glazed rim with a highlight
+      out += `<path d="${POT}" fill="url(#pl-pot)"/>
+        <path d="${POT}" fill="#000" filter="url(#pl-clay)" opacity=".55"/>
+        <path d="M60 182 L140 182 L139 186 L61 186 Z" fill="#000" opacity=".18"/>
+        <rect x="50" y="166" width="100" height="16" rx="6" fill="url(#pl-rim)"/>
+        <rect x="50" y="166" width="100" height="16" rx="6" fill="#000" filter="url(#pl-clay)" opacity=".35"/>
+        <path d="M56 169.5 H 120" stroke="#fff" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/>
+        <path d="M72 188 L76 212" stroke="#fff" stroke-opacity=".18" stroke-width="5" stroke-linecap="round"/>`;
       return out;
     }
 
