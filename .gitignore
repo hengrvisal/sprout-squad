@@ -24,3 +24,6 @@ yarn-error.*
 .idea/
 *.tsbuildinfo
 *.patch
+
+# Supabase CLI local state (created by `supabase link`)
+supabase/.temp/

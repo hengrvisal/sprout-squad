@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCelebrate } from '@/components/Celebrate';
 import { CategoryPicker } from '@/components/CategoryPicker';
 import { FocusDial } from '@/components/FocusDial';
@@ -51,7 +52,8 @@ export function FocusPage({ active }: { active: boolean }) {
   const c = useColors();
   const f = useFocus();
   const celebrate = useCelebrate();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { add, today, counts } = useEntries();
   const { live, joined } = useSessions();
   const { selected } = useSquads();
@@ -62,7 +64,9 @@ export function FocusPage({ active }: { active: boolean }) {
   const [dragging, setDragging] = useState(false);
   const [logErr, setLogErr] = useState<string | null>(null);
   const running = f.timer.status === 'running';
-  const size = Math.min(width - 90, 290);
+  // the page doesn't scroll (so dragging the dial never moves it); size the dial to fit any phone
+  const compact = height < 740;
+  const size = Math.max(180, Math.min(width - 90, 290, height - insets.top - insets.bottom - (compact ? 460 : 400)));
 
   // keep the screen on while a round is running and you're looking at it
   const visible = active;
@@ -135,6 +139,7 @@ export function FocusPage({ active }: { active: boolean }) {
 
   return (
     <Screen
+      scroll={false}
       gradient={f.timer.mode === 'focus' ? 'focus' : 'rest'}
       title="Focus"
       subtitle={`${name} · ${minutesLabel(length)}`}
@@ -193,7 +198,7 @@ export function FocusPage({ active }: { active: boolean }) {
         </Chunky>
       ) : (
         /* the timer */
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 28, paddingTop: 8 }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: compact ? 16 : 28, paddingTop: compact ? 0 : 8 }}>
           <FocusDial
             size={size}
             value={idle ? Math.min(1, length / 60) : progress(f.timer, f.settings)}
@@ -210,7 +215,7 @@ export function FocusPage({ active }: { active: boolean }) {
             <Text style={{ fontFamily: fonts.bodyBold, fontSize: 12.5, letterSpacing: 1, textTransform: 'uppercase', color: c.ink3 }}>{name}</Text>
             <Text
               accessibilityLabel={`${Math.ceil(f.left / 60)} minutes left`}
-              style={{ fontFamily: fonts.display, fontSize: 62, lineHeight: 68, color: c.ink, letterSpacing: -2, fontVariant: ['tabular-nums'] }}
+              style={{ fontFamily: fonts.display, fontSize: Math.round(size * 0.215), lineHeight: Math.round(size * 0.235), color: c.ink, letterSpacing: -2, fontVariant: ['tabular-nums'] }}
             >
               {clock(f.left)}
             </Text>
